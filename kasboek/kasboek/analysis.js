@@ -44,6 +44,17 @@ export const cleanName = (s) => String(s || '').replace(/^(ccv|bck|sumup|nya|c&m
 const PERSON = /^(?:(?:hr|mw|dhr|mevr|fam)\.?\s+)?(?:[A-Z]\.){1,5}\s*(?:[a-z]+\s+){0,2}[A-Z][a-zA-Z'-]+(?:\s+(?:en\/of|eo|e\/o)\s+.*)?$/;
 export const isPerson = (name) => PERSON.test(String(name || '').trim());
 
+// Naam van de spaarrekening of spaarpot: "naar: Vrij Spaargeld" / "van: Hypotheek aflossing", anders het rekeningnummer.
+export function potOf(t) {
+  const flat = (t.desc || '').replace(/\s*\|\s*/g, '');
+  const m = (t.desc || '').replace(/\s*\|\s*/g, '\u0000').match(/(?:^|\s)(?:naar|van):\s*([^\u0000]+(?:\u0000[^\u0000]+)?)/i);
+  let pot = m ? m[1].replace(/\u0000/g, '').trim() : '';
+  if (pot.length > 40) pot = pot.slice(0, 40);
+  const note = m ? (t.desc || '').replace(/\s*\|\s*/g, '').split(/(?:naar|van):/i)[0].trim() : (flat || '');
+  if (!pot) pot = t.counterIban ? 'Spaarrekening ••' + t.counterIban.slice(-4) : (cleanName(t.name) || 'Eigen rekening');
+  return { pot, note: note.slice(0, 60) };
+}
+
 export function nameKey(s) {
   return cleanName(s).toLowerCase()
     .replace(/\s+via\s+.*$/, '')
@@ -115,8 +126,8 @@ export function analyze(txIn, settings = {}, meta = {}) {
   // --- terugkerende afschrijvingen: maak er vaste lasten van ---
   const byKey = new Map();
   for (const t of tx) {
-    if (t.amount >= 0) continue;
-    const k = (t.group === 'intern' ? 'I:' : '') + t.key;
+    if (t.amount >= 0 || t.group === 'intern') continue;
+    const k = t.key;
     if (!byKey.has(k)) byKey.set(k, []);
     byKey.get(k).push(t);
   }
@@ -171,11 +182,39 @@ export function analyze(txIn, settings = {}, meta = {}) {
     const early = median(ms.slice(0, Math.max(1, Math.floor(ms.length / 2))).map((m) => perMonth[m]));
     const change = freq === 'maandelijks' && ms.length >= 4 && early > 0 ? (lastAmt - early) / early : 0;
     recurring.push({
+      day: Math.round(median(list.map((t) => Number(t.date.slice(8, 10))))),
       key: k, name: last.name, cat: list.some((t) => t.group === 'intern') ? 'intern' : cat, sparen: c.group === 'intern' || k.startsWith('I:'),
       freq, monthly: r2(monthly), last: r2(lastAmt), lastDate: last.date, firstDate: first.date, months: ms.length, total: r2(amounts.reduce((s, a) => s + a, 0)),
       status, change, ids: new Set(list.map((t) => t.id)),
     });
   }
+  // --- vast sparen: alleen automatische, maandelijkse overboekingen met een vast bedrag ---
+  // per spaarpot + bedrag; elke maand precies één keer, steeds rond dezelfde dag, ook in de laatste 3 maanden
+  const savGroups = new Map();
+  for (const t of tx) {
+    if (t.group !== 'intern' || t.amount >= 0) continue;
+    const k = potOf(t).pot + '|' + (-t.amount).toFixed(2);
+    if (!savGroups.has(k)) savGroups.set(k, []);
+    savGroups.get(k).push(t);
+  }
+  const lastFull = statMonths.slice(-3);
+  for (const [k, list] of savGroups) {
+    const months = [...new Set(list.map((t) => t.month))].sort();
+    const perMonth = list.length / months.length;
+    const covered = monthsBetween(months[0], ym(period.tot)).filter((m) => statMonths.includes(m));
+    const coverage = months.filter((m) => covered.includes(m)).length / Math.max(1, covered.length);
+    const days = list.map((t) => Number(t.date.slice(8, 10))); const dMed = median(days);
+    const sameDay = days.filter((d) => Math.abs(d - dMed) <= 3).length / days.length;
+    const recent = lastFull.every((m) => months.includes(m));
+    if (months.length < 3 || perMonth > 1.2 || coverage < 0.85 || sameDay < 0.8 || !recent) continue;
+    const amt = -list[0].amount; const last = list[list.length - 1];
+    recurring.push({
+      key: 'S:' + k, name: potOf(last).pot, cat: 'intern', sparen: true, freq: 'maandelijks', auto: true, day: Math.round(dMed),
+      monthly: r2(amt), last: r2(amt), lastDate: last.date, firstDate: list[0].date, months: months.length, total: r2(amt * list.length),
+      status: 'actief', change: 0, ids: new Set(list.map((t) => t.id)),
+    });
+  }
+
   const recurringIds = new Set();
   recurring.filter((r) => !r.sparen && r.freq !== 'incidenteel').forEach((r) => r.ids.forEach((id) => recurringIds.add(id)));
   for (const t of tx) {
@@ -231,7 +270,7 @@ export function analyze(txIn, settings = {}, meta = {}) {
     const peaks = ms.filter((m) => perMonth[m] > med * 1.4 && perMonth[m] - med > 250).map((m) => ({ month: m, extra: r2(perMonth[m] - med) }));
     const lows = ms.filter((m) => perMonth[m] < med * 0.6 && med > 250).map((m) => ({ month: m, amount: r2(perMonth[m]) }));
     const missing = med > 250 ? statMonths.filter((m) => !perMonth[m] && m > ms[0]) : [];
-    incomeStreams.push({ key: k, name: list[list.length - 1].name, cat: list[list.length - 1].cat, base: r2(med), months: ms.length, peaks, lows, missing });
+    incomeStreams.push({ key: k, name: list[list.length - 1].name, cat: list[list.length - 1].cat, base: r2(med), months: ms.length, peaks, lows, missing, day: Math.round(median(list.filter((t) => t.amount > 100).map((t) => Number(t.date.slice(8, 10)))) || 25) });
     const nm = list[list.length - 1].name;
     peaks.forEach((p) => notes.push({ kind: 'info', text: `${nm}: in ${monthLabel(p.month, true)} ${eur(p.extra)} meer dan normaal${['05', '06'].includes(p.month.slice(5)) ? ' (waarschijnlijk vakantiegeld)' : ' (bonus of nabetaling?)'}.` }));
     lows.forEach((p) => notes.push({ kind: 'warn', text: `${nm}: in ${monthLabel(p.month, true)} maar ${eur(p.amount)} ontvangen, normaal ${eur(med)}.` }));

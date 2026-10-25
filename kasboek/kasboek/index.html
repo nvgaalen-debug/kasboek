@@ -88,6 +88,8 @@
       <button role="tab" id="t-vast" aria-controls="p-vast" aria-selected="false" data-tab="vast">Vaste lasten</button>
       <button role="tab" id="t-prognose" aria-controls="p-prognose" aria-selected="false" data-tab="prognose">Prognose</button>
       <button role="tab" id="t-sparen" aria-controls="p-sparen" aria-selected="false" data-tab="sparen">Sparen</button>
+      <button role="tab" id="t-proj" aria-controls="p-proj" aria-selected="false" data-tab="proj">Projecten</button>
+      <button role="tab" id="t-cmp" aria-controls="p-cmp" aria-selected="false" data-tab="cmp">Vergelijken</button>
       <button role="tab" id="t-cat" aria-controls="p-cat" aria-selected="false" data-tab="cat">Categorieën</button>
       <button role="tab" id="t-tx" aria-controls="p-tx" aria-selected="false" data-tab="tx">Transacties</button>
     </nav>
@@ -142,12 +144,19 @@
           <div class="legend" id="leg-saldo"></div>
           <div class="chart" id="ch-saldo"></div>
         </article>
+        <article class="card wide" id="card-low">
+          <header><h2>Saldo binnen de maand</h2><p id="low-note">Je salaris komt later in de maand binnen dan de meeste vaste lasten. Zo verloopt je saldo dag voor dag.</p></header>
+          <div class="low-wrap">
+            <div><div class="legend" id="leg-low"></div><div class="chart" id="ch-low"></div></div>
+            <div class="low-side"><h3>Laagste saldo per maand</h3><div class="scroll"><table class="ledger compact"><thead><tr><th>Maand</th><th class="num">Laagste</th><th>Op</th><th class="num">Eind</th></tr></thead><tbody id="tb-low"></tbody></table></div></div>
+          </div>
+        </article>
         <article class="card">
           <header><h2>Pas de aannames aan</h2><p>De prognose rekent direct mee.</p></header>
           <div class="form">
             <label for="f-inkomen">Vast inkomen per maand</label><input id="f-inkomen" type="number" step="10" inputmode="decimal">
             <label for="f-vast">Vaste lasten per maand</label><input id="f-vast" type="number" step="10" inputmode="decimal">
-            <label for="f-sparen">Vast sparen per maand</label><input id="f-sparen" type="number" step="10" inputmode="decimal">
+            <label for="f-sparen">Automatisch sparen per maand</label><input id="f-sparen" type="number" step="10" inputmode="decimal">
             <label for="f-var">Overige uitgaven per maand (basis)</label><input id="f-var" type="number" step="10" inputmode="decimal">
             <label for="f-start">Saldo nu</label><input id="f-start" type="number" step="10" inputmode="decimal">
             <label for="f-cap">Losse uitgaven boven dit bedrag niet meetellen</label><input id="f-cap" type="number" min="0" step="50" inputmode="decimal" placeholder="geen grens">
@@ -158,7 +167,7 @@
           </div>
         </article>
         <article class="card">
-          <header><h2>Per maand</h2><p><strong>Bij</strong> is je vaste inkomen (in mei met vakantiegeld). <strong>Af</strong> is vaste lasten + vast sparen + overige uitgaven in een normale maand. Sparen staat bij Af omdat het van je betaalrekening gaat, maar het blijft van jou. Klik op een maand voor de opbouw.</p></header>
+          <header><h2>Per maand</h2><p><strong>Bij</strong> is je vaste inkomen (in mei met vakantiegeld). <strong>Af</strong> is vaste lasten + automatisch sparen + overige uitgaven in een normale maand. Sparen staat bij Af omdat het van je betaalrekening gaat, maar het blijft van jou. Klik op een maand voor de opbouw.</p></header>
           <div class="scroll"><table class="ledger"><thead><tr><th>Maand</th><th class="num">Bij</th><th class="num">Af</th><th class="num">Over</th><th class="num">Saldo</th></tr></thead><tbody id="tb-prog"></tbody></table></div>
         </article>
       </div>
@@ -183,6 +192,38 @@
         </article>
       </div>
       <p class="hint">Mist er een overboeking, of staat er iets tussen dat geen spaarrekening is? Zet bij <em>Instellingen</em> je naam en het rekeningnummer van je spaarrekening, of kies bij <em>Categorieën</em> de categorie <em>Eigen rekening / sparen</em>.</p>
+    </section>
+
+    <section class="panel" id="p-proj" role="tabpanel" aria-labelledby="t-proj" hidden>
+      <article class="card proj-new">
+        <header><h2>Projecten</h2><p>Bundel uitgaven die bij elkaar horen, zoals een verbouwing of een vakantie, ook als ze in verschillende categorieën staan. Koppel ook het geld dat je ervoor van je spaarrekening haalde, dan zie je hoe het project betaald is.</p></header>
+        <div class="filters"><input id="pj-name" type="text" placeholder="Naam van een nieuw project, bijv. Tuin en overkapping" aria-label="Naam van het project"><button class="btn primary" id="pj-add" type="button">Project maken</button></div>
+      </article>
+      <div id="pj-list"></div>
+      <article class="card" id="pj-picker" hidden>
+        <header><h2>Transacties koppelen</h2><p>Kies een project en klik op <em>Koppel</em>. Bovenaan staan grote uitgaven en overboekingen van je spaarrekening.</p></header>
+        <div class="filters"><select id="pj-target" aria-label="Project"></select><input id="pj-q" type="search" placeholder="Zoek op naam of omschrijving" aria-label="Zoeken"></div>
+        <div class="scroll tall"><table class="ledger" id="tbl-pj"><thead><tr><th>Datum</th><th>Naam en omschrijving</th><th class="num">Bedrag</th><th></th></tr></thead><tbody id="tb-pj"></tbody></table></div>
+      </article>
+    </section>
+
+    <section class="panel" id="p-cmp" role="tabpanel" aria-labelledby="t-cmp" hidden>
+      <div id="cmp-empty" class="card" hidden><header><h2>Vergelijken</h2><p>Laad afschriften van twee jaar, bijvoorbeeld 2025 en 2026, dan zie je hier per categorie of je meer of minder uitgeeft dan het jaar ervoor.</p></header></div>
+      <div id="cmp-body">
+        <div class="filters cmp-controls">
+          <label class="seg"><input type="radio" name="cmp-mode" value="same" checked> <span id="cmp-same-lbl">Zelfde maanden</span></label>
+          <label class="seg"><input type="radio" name="cmp-mode" value="avg"> <span>Gemiddeld per maand, hele jaar</span></label>
+        </div>
+        <div class="tiles" id="tiles-cmp"></div>
+        <article class="card">
+          <header><h2>Uitgaven per categorie</h2><p id="cmp-note"></p></header>
+          <div class="cmp-table" id="cmp-out"></div>
+        </article>
+        <article class="card">
+          <header><h2>Inkomsten per categorie</h2></header>
+          <div class="cmp-table" id="cmp-in"></div>
+        </article>
+      </div>
     </section>
 
     <section class="panel" id="p-cat" role="tabpanel" aria-labelledby="t-cat" hidden>
