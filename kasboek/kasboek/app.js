@@ -59,7 +59,7 @@ const hideTip = () => { tipEl.hidden = true; };
 // ---------- bestanden laden ----------
 let pdfjsP = null;
 async function getPdfjs() {
-  if (!pdfjsP) pdfjsP = import('./lib/pdf.min.mjs').then((m) => { m.GlobalWorkerOptions.workerSrc = new URL('./lib/pdf.worker.min.mjs', import.meta.url).href; return m; });
+  if (!pdfjsP) pdfjsP = import('./lib/polyfills.mjs').then(() => import('./lib/pdf.min.mjs')).then((m) => { m.GlobalWorkerOptions.workerSrc = new URL('./lib/pdf.worker.shim.mjs', import.meta.url).href; return m; });
   return pdfjsP;
 }
 
