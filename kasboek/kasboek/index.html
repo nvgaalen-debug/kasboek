@@ -87,6 +87,7 @@
       <button role="tab" id="t-overzicht" aria-controls="p-overzicht" aria-selected="true" data-tab="overzicht">Overzicht</button>
       <button role="tab" id="t-vast" aria-controls="p-vast" aria-selected="false" data-tab="vast">Vaste lasten</button>
       <button role="tab" id="t-prognose" aria-controls="p-prognose" aria-selected="false" data-tab="prognose">Prognose</button>
+      <button role="tab" id="t-sparen" aria-controls="p-sparen" aria-selected="false" data-tab="sparen">Sparen</button>
       <button role="tab" id="t-cat" aria-controls="p-cat" aria-selected="false" data-tab="cat">Categorieën</button>
       <button role="tab" id="t-tx" aria-controls="p-tx" aria-selected="false" data-tab="tx">Transacties</button>
     </nav>
@@ -158,6 +159,26 @@
           <div class="scroll"><table class="ledger"><thead><tr><th>Maand</th><th class="num">Bij</th><th class="num">Af</th><th class="num">Over</th><th class="num">Saldo</th></tr></thead><tbody id="tb-prog"></tbody></table></div>
         </article>
       </div>
+    </section>
+
+    <section class="panel" id="p-sparen" role="tabpanel" aria-labelledby="t-sparen" hidden>
+      <div class="tiles" id="tiles-sparen"></div>
+      <article class="card">
+        <header><h2>Naar en van je spaarrekening per maand</h2><p>Boven de lijn wat je wegzette, onder de lijn wat je terughaalde naar je betaalrekening.</p></header>
+        <div class="legend" id="leg-sparen"></div>
+        <div class="chart" id="ch-sparen"></div>
+      </article>
+      <div class="grid">
+        <article class="card">
+          <header><h2>Per spaarrekening of spaarpot</h2><p>Herkend aan de naam van de rekening in de omschrijving, of aan het rekeningnummer.</p></header>
+          <div class="scroll"><table class="ledger"><thead><tr><th>Rekening</th><th class="num">Naartoe</th><th class="num">Terug</th><th class="num">Netto</th></tr></thead><tbody id="tb-pots"></tbody><tfoot id="tf-pots"></tfoot></table></div>
+        </article>
+        <article class="card">
+          <header><h2>Alle overboekingen</h2><p id="sp-count"></p></header>
+          <div class="scroll"><table class="ledger" id="tbl-sp"><thead><tr><th>Datum</th><th>Rekening en omschrijving</th><th class="num">Bedrag</th></tr></thead><tbody id="tb-sp"></tbody></table></div>
+        </article>
+      </div>
+      <p class="hint">Mist er een overboeking, of staat er iets tussen dat geen spaarrekening is? Zet bij <em>Instellingen</em> je naam en het rekeningnummer van je spaarrekening, of kies bij <em>Categorieën</em> de categorie <em>Eigen rekening / sparen</em>.</p>
     </section>
 
     <section class="panel" id="p-cat" role="tabpanel" aria-labelledby="t-cat" hidden>

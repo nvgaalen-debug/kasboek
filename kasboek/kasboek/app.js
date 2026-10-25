@@ -173,7 +173,7 @@ function renderAll() {
 
 function renderTab(tab) {
   if (!state.a) return;
-  ({ overzicht: renderOverzicht, vast: renderVast, prognose: renderPrognose, cat: renderCat, tx: renderTx })[tab]();
+  ({ overzicht: renderOverzicht, vast: renderVast, prognose: renderPrognose, sparen: renderSparen, cat: renderCat, tx: renderTx })[tab]();
 }
 
 function selectTab(tab, push = true) {
@@ -399,7 +399,7 @@ function monthChart(el, rows) {
     });
     if (i % every === 0) g.append(s('text', { x: cx, y: H - 8, 'text-anchor': 'middle' }, monthLabel(r.month)));
     const hit = s('rect', { x: m.l + band * i, y: m.t, width: band, height: H - m.t - m.b, fill: 'transparent' });
-    hit.addEventListener('mousemove', (e) => showTip(e, monthLabel(r.month, true) + (r.full ? '' : ' (deels)'), [[C.in, 'Bij', eur(r.inkomen)], [C.vast, 'Vaste lasten', eur(r.vast)], [C.var, 'Overige uitgaven', eur(r.variabel)], [C.een, 'Eenmalig', eur(r.eenmalig)], [null, 'Saldo maand', eur(r.netto)]]));
+    hit.addEventListener('mousemove', (e) => showTip(e, monthLabel(r.month, true) + (r.full ? '' : ' (deels)'), [[C.in, 'Bij', eur(r.inkomen)], [C.vast, 'Vaste lasten', eur(r.vast)], [C.var, 'Overige uitgaven', eur(r.variabel)], [C.een, 'Eenmalig', eur(r.eenmalig)], [null, 'Saldo maand', eur(r.netto)], ...(r.intern ? [[null, r.intern < 0 ? 'Naar spaarrekening' : 'Van spaarrekening', eur(Math.abs(r.intern))]] : [])]));
     hit.addEventListener('mouseleave', hideTip);
     g.append(hit);
     svg.append(g);
@@ -547,6 +547,81 @@ function saldoChart(el, a, R) {
   hit.addEventListener('mouseleave', () => { hideTip(); dot.setAttribute('visibility', 'hidden'); });
   svg.append(hit);
   el.replaceChildren(svg);
+}
+
+// ---------- sparen ----------
+// Naam van de spaarrekening of spaarpot: "naar: Vrij Spaargeld" / "van: Hypotheek aflossing", anders het rekeningnummer.
+function potOf(t) {
+  const flat = (t.desc || '').replace(/\s*\|\s*/g, '');
+  const m = (t.desc || '').replace(/\s*\|\s*/g, '\u0000').match(/(?:^|\s)(?:naar|van):\s*([^\u0000]+(?:\u0000[^\u0000]+)?)/i);
+  let pot = m ? m[1].replace(/\u0000/g, '').trim() : '';
+  if (pot.length > 40) pot = pot.slice(0, 40);
+  const note = m ? (t.desc || '').replace(/\s*\|\s*/g, '').split(/(?:naar|van):/i)[0].trim() : (flat || '');
+  if (!pot) pot = t.counterIban ? 'Spaarrekening ••' + t.counterIban.slice(-4) : (cleanName(t.name) || 'Eigen rekening');
+  return { pot, note: note.slice(0, 60) };
+}
+
+function renderSparen() {
+  const a = state.a; const C = COLORS();
+  const ts = a.tx.filter((t) => t.group === 'intern');
+  const naar = -ts.filter((t) => t.amount < 0).reduce((x, t) => x + t.amount, 0);
+  const van = ts.filter((t) => t.amount > 0).reduce((x, t) => x + t.amount, 0);
+  const net = naar - van;
+  const vast = a.recurring.filter((r) => r.sparen && r.freq === 'maandelijks' && r.status !== 'gestopt?');
+  $('#tiles-sparen').replaceChildren(
+    tile('Naar je spaarrekening', eur0(naar), `${ts.filter((t) => t.amount < 0).length} overboekingen`),
+    tile('Terug naar je betaalrekening', eur0(van), `${ts.filter((t) => t.amount > 0).length} overboekingen`),
+    tile(net >= 0 ? 'Netto gespaard' : 'Netto opgenomen', eur0(Math.abs(net)), `Over ${a.months.length} maanden`, net >= 0 ? 'pos' : 'neg'),
+    tile('Vast per maand', eur0(a.kpi.sparenPm), vast.length ? (() => {
+      const ids = new Set(vast.flatMap((r) => [...r.ids])); const lastM = a.months[a.months.length - 1];
+      const recent = ts.filter((t) => ids.has(t.id) && t.amount < 0); const lm = recent.length ? recent[recent.length - 1].month : lastM;
+      const by = new Map(); recent.filter((t) => t.month === lm).forEach((t) => { const p = potOf(t).pot; by.set(p, (by.get(p) || 0) - t.amount); });
+      return [...by].map(([p, v]) => `${eur0(v)} naar ${p}`).join(' en ');
+    })() : 'Geen vaste maandelijkse overboeking'),
+  );
+  // grafiek: naar boven, van onder
+  const el = $('#ch-sparen'); const W = el.clientWidth;
+  if (W) {
+    $('#leg-sparen').replaceChildren(h('span', {}, h('i', { style: `background:${C.in}` }), 'Naar spaarrekening'), h('span', {}, h('i', { style: `background:${C.een}` }), 'Terug naar betaalrekening'), h('span', {}, h('i', { class: 'line', style: `background:${C.ink}` }), 'Netto'));
+    const rows = a.months.map((m) => { const mt = ts.filter((t) => t.month === m); return { m, naar: -mt.filter((t) => t.amount < 0).reduce((x, t) => x + t.amount, 0), van: mt.filter((t) => t.amount > 0).reduce((x, t) => x + t.amount, 0), list: mt }; });
+    const hi = Math.max(1, ...rows.map((r) => r.naar)), lo = Math.max(1, ...rows.map((r) => r.van));
+    const ticks = niceTicks(-lo, hi, 5); const tlo = ticks[0], thi = ticks[ticks.length - 1];
+    const H = 300, mg = { t: 10, r: 6, b: 26, l: 58 };
+    const y = (v) => mg.t + (H - mg.t - mg.b) * (1 - (v - tlo) / (thi - tlo));
+    const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Overboekingen naar en van spaarrekeningen per maand' });
+    ticks.forEach((v) => { svg.append(s('line', { x1: mg.l, x2: W - mg.r, y1: y(v), y2: y(v), class: 'grid-line' })); svg.append(s('text', { x: mg.l - 8, y: y(v), 'text-anchor': 'end', 'dominant-baseline': 'middle' }, compact(v))); });
+    const band = (W - mg.l - mg.r) / rows.length, bw = Math.min(28, band * 0.6), every = band < 34 ? Math.ceil(34 / band) : 1;
+    const pts = [];
+    rows.forEach((r, i) => {
+      const cx = mg.l + band * i + band / 2;
+      if (r.naar) svg.append(s('rect', { x: cx - bw / 2, y: y(r.naar), width: bw, height: Math.max(0, y(0) - y(r.naar)), rx: 3, fill: C.in }));
+      if (r.van) svg.append(s('rect', { x: cx - bw / 2, y: y(0), width: bw, height: Math.max(0, y(-r.van) - y(0)), rx: 3, fill: C.een }));
+      pts.push([cx, y(r.naar - r.van)]);
+      if (i % every === 0) svg.append(s('text', { x: cx, y: H - 8, 'text-anchor': 'middle' }, monthLabel(r.m)));
+      const hit = s('rect', { x: mg.l + band * i, y: mg.t, width: band, height: H - mg.t - mg.b, fill: 'transparent' });
+      const pots = new Map(); r.list.forEach((t) => { const p = potOf(t).pot; pots.set(p, (pots.get(p) || 0) - t.amount); });
+      hit.addEventListener('mousemove', (e) => showTip(e, monthLabel(r.m, true), [[C.in, 'Naartoe', eur(r.naar)], [C.een, 'Terug', eur(r.van)], [null, 'Netto', eur(r.naar - r.van)], ...[...pots].filter(([, v]) => Math.abs(v) > 0.005).sort((x2, y2) => Math.abs(y2[1]) - Math.abs(x2[1])).slice(0, 4).map(([p, v]) => [null, p, (v >= 0 ? '+ ' : '− ') + eur(Math.abs(v))])]));
+      hit.addEventListener('mouseleave', hideTip);
+      svg.append(hit);
+    });
+    svg.append(s('line', { x1: mg.l, x2: W - mg.r, y1: y(0), y2: y(0), stroke: C.muted, 'stroke-width': 1 }));
+    svg.append(s('path', { d: pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(''), fill: 'none', stroke: C.ink, 'stroke-width': 1.8, 'stroke-linejoin': 'round', 'pointer-events': 'none' }));
+    pts.forEach((p) => svg.append(s('circle', { cx: p[0], cy: p[1], r: 2.5, fill: C.ink, 'pointer-events': 'none' })));
+    el.replaceChildren(svg);
+  }
+  // per pot
+  const pots = new Map();
+  ts.forEach((t) => { const p = potOf(t).pot; if (!pots.has(p)) pots.set(p, { naar: 0, van: 0, n: 0 }); const r = pots.get(p); r.n++; if (t.amount < 0) r.naar -= t.amount; else r.van += t.amount; });
+  const potRows = [...pots].sort((x, y2) => (y2[1].naar + y2[1].van) - (x[1].naar + x[1].van));
+  $('#tb-pots').replaceChildren(...(potRows.length ? potRows.map(([p, r]) => h('tr', {}, h('td', {}, p, h('span', { class: 'sm' }, `${r.n} overboekingen`)), h('td', { class: 'num' }, r.naar ? eur(r.naar) : ''), h('td', { class: 'num' }, r.van ? eur(r.van) : ''), h('td', { class: 'num ' + (r.naar - r.van >= 0 ? 'bij' : 'af') }, (r.naar - r.van >= 0 ? '+ ' : '− ') + eur(Math.abs(r.naar - r.van))))) : [h('tr', { class: 'muted' }, h('td', { colspan: 4 }, 'Geen overboekingen naar eigen rekeningen gevonden.'))]));
+  $('#tf-pots').replaceChildren(potRows.length > 1 ? h('tr', {}, h('td', {}, 'Totaal'), h('td', { class: 'num' }, eur(naar)), h('td', { class: 'num' }, eur(van)), h('td', { class: 'num' }, (net >= 0 ? '+ ' : '− ') + eur(Math.abs(net)))) : '');
+  // lijst
+  const list = [...ts].reverse();
+  $('#sp-count').textContent = `${list.length} overboekingen, nieuwste eerst. Groen ging naar je spaarrekening, goud kwam terug.`;
+  $('#tb-sp').replaceChildren(...list.slice(0, 400).map((t) => { const p = potOf(t); return h('tr', {},
+    h('td', { class: 'num' }, shortDate(t.date) + (a.months.length > 12 ? "'" + t.date.slice(2, 4) : '')),
+    h('td', {}, p.pot, p.note && p.note.toLowerCase() !== p.pot.toLowerCase() ? h('span', { class: 'sm' }, p.note) : null),
+    h('td', { class: 'num ' + (t.amount < 0 ? 'bij' : 'af') }, (t.amount < 0 ? '→ ' : '← ') + eur(Math.abs(t.amount)))); }));
 }
 
 // ---------- categorieën ----------

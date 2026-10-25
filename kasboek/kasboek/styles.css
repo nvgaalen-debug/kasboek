@@ -276,3 +276,43 @@ div.bd-row.d0 .bd-l { padding-left: 1.1em; }
   #tbl-tx .sm { max-width: 100%; }
   #tbl-tx td { overflow: hidden; }
 }
+
+.ledger td.af { color: var(--een); }
+#p-sparen > .hint { margin-top: 12px; }
+
+/* ---------- huisstijl: achtergrond ---------- */
+:root { --pattern: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22170%22 height=%22170%22 viewBox=%220 0 170 170%22%3E%3Cg fill=%22none%22 stroke-width=%222%22 stroke-linecap=%22round%22 opacity=%22.07%22%3E%3Cpath d=%22M25.0,53.5 A16,16 0 1 1 55.0,53.5%22 stroke=%22%231d6b57%22/%3E%3Cpath d=%22M40,48 L46.0,37.6%22 stroke=%22%231d6b57%22/%3E%3Ccircle cx=%2240%22 cy=%2248%22 r=%222.2%22 fill=%22%231d6b57%22 stroke=%22none%22/%3E%3Cpath d=%22M107.7,131.8 A11,11 0 1 1 128.3,131.8%22 stroke=%22%231d6b57%22/%3E%3Cpath d=%22M118,128 L112.9,121.9%22 stroke=%22%231d6b57%22/%3E%3Ccircle cx=%22122%22 cy=%2240%22 r=%226%22 stroke=%22%23c39a1f%22/%3E%3Ccircle cx=%22122%22 cy=%2240%22 r=%222.5%22 stroke=%22%23c39a1f%22/%3E%3Ccircle cx=%2244%22 cy=%22130%22 r=%221.6%22 fill=%22%231d6b57%22 stroke=%22none%22/%3E%3Ccircle cx=%2280%22 cy=%2288%22 r=%221.6%22 fill=%22%23c39a1f%22 stroke=%22none%22/%3E%3Cpath d=%22M150 82h8M154 78v8%22 stroke=%22%231d6b57%22/%3E%3C/g%3E%3C/svg%3E"); --hero-a: #1f7863; --hero-b: #123f34; --hero-gold: #f2c14e; --hero-ink: #ffffff; --hero-muted: rgba(255,255,255,.78); }
+@media (prefers-color-scheme: dark) { :root { --pattern: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22170%22 height=%22170%22 viewBox=%220 0 170 170%22%3E%3Cg fill=%22none%22 stroke-width=%222%22 stroke-linecap=%22round%22 opacity=%22.06%22%3E%3Cpath d=%22M25.0,53.5 A16,16 0 1 1 55.0,53.5%22 stroke=%22%234fb394%22/%3E%3Cpath d=%22M40,48 L46.0,37.6%22 stroke=%22%234fb394%22/%3E%3Ccircle cx=%2240%22 cy=%2248%22 r=%222.2%22 fill=%22%234fb394%22 stroke=%22none%22/%3E%3Cpath d=%22M107.7,131.8 A11,11 0 1 1 128.3,131.8%22 stroke=%22%234fb394%22/%3E%3Cpath d=%22M118,128 L112.9,121.9%22 stroke=%22%234fb394%22/%3E%3Ccircle cx=%22122%22 cy=%2240%22 r=%226%22 stroke=%22%23d8b24a%22/%3E%3Ccircle cx=%22122%22 cy=%2240%22 r=%222.5%22 stroke=%22%23d8b24a%22/%3E%3Ccircle cx=%2244%22 cy=%22130%22 r=%221.6%22 fill=%22%234fb394%22 stroke=%22none%22/%3E%3Ccircle cx=%2280%22 cy=%2288%22 r=%221.6%22 fill=%22%23d8b24a%22 stroke=%22none%22/%3E%3Cpath d=%22M150 82h8M154 78v8%22 stroke=%22%234fb394%22/%3E%3C/g%3E%3C/svg%3E"); --hero-a: #18523f; --hero-b: #0b2019; } }
+html { overflow-x: clip; }
+body {
+  background-color: var(--paper);
+  background-image: radial-gradient(1200px 520px at 85% -10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%), var(--pattern);
+  background-repeat: no-repeat, repeat;
+  background-attachment: fixed, fixed;
+}
+.bar { background: color-mix(in srgb, var(--paper) 82%, transparent); }
+.bar::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: linear-gradient(90deg, var(--accent) 0 72%, var(--hero-gold) 72% 100%); opacity: .85; }
+
+/* startscherm als merkband */
+.start { position: relative; isolation: isolate; padding-block: 44px 48px; margin-top: -28px; }
+.start::before {
+  content: ""; position: absolute; z-index: -1; top: 0; bottom: 0; left: 50%; width: 100vw; transform: translateX(-50%);
+  background: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 400%22%3E%3Cg fill=%22none%22 stroke-linecap=%22round%22%3E%3Cpath d=%22M59.0,271.3 A150,150 0 1 1 314.9,123.6%22 stroke=%22%23ffffff%22 stroke-width=%2226%22 opacity=%22.10%22/%3E%3Cpath d=%22M314.9,123.6 A150,150 0 0 1 341.0,271.3%22 stroke=%22%23f2c14e%22 stroke-width=%2226%22 opacity=%22.35%22/%3E%3Cpath d=%22M200,220 L273.9,125.4%22 stroke=%22%23ffffff%22 stroke-width=%2214%22 opacity=%22.12%22/%3E%3Ccircle cx=%22200%22 cy=%22220%22 r=%2226%22 fill=%22%23ffffff%22 opacity=%22.12%22/%3E%3C/g%3E%3C/svg%3E") no-repeat right max(-60px, calc(50vw - 640px)) top 40px / min(520px, 70vw), linear-gradient(160deg, var(--hero-a), var(--hero-b));
+  border-bottom: 3px solid var(--hero-gold);
+}
+.start .eyebrow { color: var(--hero-gold); }
+.start h1 { color: var(--hero-ink); }
+.start .lede { color: var(--hero-muted); }
+.start .promises li { border-left-color: var(--hero-gold); color: var(--hero-muted); }
+.start .promises strong { color: var(--hero-ink); }
+.start .drop { border-color: color-mix(in srgb, var(--hero-gold) 60%, transparent); box-shadow: 0 10px 40px rgba(0,0,0,.18); }
+.start .btn.link { color: var(--hero-ink); justify-self: start; }
+.start .howto { box-shadow: 0 6px 24px rgba(0,0,0,.12); }
+.start .error { box-shadow: 0 6px 24px rgba(0,0,0,.12); }
+@media (max-width: 860px) { .start { padding-block: 28px 32px; margin-top: -18px; } }
+
+/* kaarten iets loskomen van het patroon */
+.card, .tile { box-shadow: 0 1px 2px rgba(20,35,30,.04), 0 6px 20px rgba(20,35,30,.05); }
+.summary h1 { position: relative; }
+.summary h1::after { content: ""; display: block; width: 56px; height: 3px; border-radius: 2px; margin-top: 10px; background: linear-gradient(90deg, var(--accent) 0 70%, var(--hero-gold) 70%); }
+@media (prefers-color-scheme: dark) { .card, .tile { box-shadow: none; } }
