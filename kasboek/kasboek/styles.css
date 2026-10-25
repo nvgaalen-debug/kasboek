@@ -207,3 +207,35 @@ button.hbar-row:hover, button.hbar-row.open { background: color-mix(in srgb, var
 .ledger.compact td { padding: 5px 6px; }
 .ledger .mini { display: block; height: 3px; border-radius: 2px; margin-top: 4px; opacity: .8; }
 .hbar-detail-actions { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 6px; }
+
+/* klikbare tegels met uitsplitsing */
+.tile-btn { font: inherit; color: inherit; text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.tile-btn:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.tile-btn.open { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.tile-btn .lbl { display: flex; justify-content: space-between; gap: 8px; }
+.tile-btn .chev { color: var(--muted); font-size: 11px; }
+.tile-detail .bd-top { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.tile-detail .bd-top h2 { font-size: 17px; font-weight: 600; margin: 0; }
+.tile-detail .bd-top p { color: var(--muted); font-size: 13px; margin: 4px 0 12px; }
+.bd { display: grid; gap: 16px; }
+.bd-sec { min-width: 0; }
+.bd-head { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.bd-row { border-bottom: 1px solid var(--rule); }
+.bd-row > summary, div.bd-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 7px 0; font-size: 14px; }
+.bd-row > summary { cursor: pointer; list-style: none; }
+.bd-row > summary::-webkit-details-marker { display: none; }
+.bd-row > summary .bd-l::before { content: '▸'; display: inline-block; width: 1.1em; color: var(--muted); font-size: 11px; }
+.bd-row[open] > summary .bd-l::before { content: '▾'; }
+div.bd-row.d0 .bd-l { padding-left: 1.1em; }
+.bd-row > summary:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.bd-kids { padding-left: 1.1em; padding-bottom: 4px; }
+.bd-kids .bd-row { border-bottom: 0; }
+.bd-kids div.bd-row { padding: 3px 0; font-size: 13px; color: var(--muted); }
+.bd-kids div.bd-row .bd-v { color: var(--ink); }
+.bd-l { min-width: 0; overflow-wrap: anywhere; }
+.bd-n { color: var(--muted); font-size: 12px; margin-left: 8px; white-space: nowrap; }
+.bd-v { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bd-v.pos { color: var(--good); } .bd-v.neg { color: var(--bad); }
+.bd-row.muted { color: var(--muted); }
+.bd-note { margin-top: 4px; }
+@media (min-width: 900px) { .bd:has(.bd-sec + .bd-sec) { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); } }

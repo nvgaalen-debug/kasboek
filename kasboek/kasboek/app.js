@@ -209,15 +209,103 @@ function renderSummary() {
 
 function tile(lbl, big, sub, cls = '') { return h('div', { class: 'tile' }, h('span', { class: 'lbl' }, lbl), h('span', { class: 'big ' + cls }, big), sub ? h('span', { class: 'sub' }, sub) : null); }
 
+function tileBtn(id, lbl, big, sub, cls = '') {
+  const open = state.openTile === id;
+  return h('button', { type: 'button', class: 'tile tile-btn' + (open ? ' open' : ''), 'aria-expanded': String(open), 'aria-controls': 'tile-detail',
+    onclick: () => { state.openTile = open ? null : id; renderOverzicht(); if (!open) document.getElementById('tile-detail')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } },
+  h('span', { class: 'lbl' }, lbl, h('span', { class: 'chev', 'aria-hidden': 'true' }, open ? '▾' : '▸')), h('span', { class: 'big ' + cls }, big), sub ? h('span', { class: 'sub' }, sub) : null);
+}
+
+// posten (ontvangers/afzenders) binnen een selectie transacties; sign -1 voor uitgaven
+function postsOf(ts, sign = -1, div = 1) {
+  const by = new Map();
+  for (const t of ts) {
+    if (!by.has(t.key)) by.set(t.key, { label: cleanName(t.name) || '(zonder naam)', n: 0, total: 0 });
+    const r = by.get(t.key); r.n++; r.total += (sign * t.amount) / div;
+  }
+  return [...by.values()].filter((r) => Math.abs(r.total) >= 0.005).sort((a, b) => b.total - a.total);
+}
+function catsOf(ts, sign = -1, div = 1) {
+  const by = new Map();
+  for (const t of ts) { if (!by.has(t.cat)) by.set(t.cat, []); by.get(t.cat).push(t); }
+  return [...by.entries()].map(([cat, list]) => ({ label: CAT[cat].label, cat, n: list.length, total: (sign * list.reduce((x, t) => x + t.amount, 0)) / div, children: postsOf(list, sign, div) }))
+    .filter((r) => Math.abs(r.total) >= 0.005).sort((a, b) => b.total - a.total);
+}
+
+// tabel met uitklapbare regels: secties -> regels -> posten
+function breakdown(sections, { unit = '', note = '' } = {}) {
+  const money = (v) => eur(v);
+  const line = (r, depth) => {
+    const kids = (r.children || []).slice(0, 25);
+    const more = (r.children || []).length - kids.length;
+    const head = [h('span', { class: 'bd-l' }, r.label, r.n != null ? h('span', { class: 'bd-n' }, r.n === 1 ? '1 transactie' : `${r.n} transacties`) : null), h('span', { class: 'bd-v ' + (r.cls || '') }, (r.sign || '') + money(r.total))];
+    if (!kids.length) return h('div', { class: 'bd-row d' + depth }, ...head);
+    return h('details', { class: 'bd-row d' + depth }, h('summary', {}, ...head),
+      h('div', { class: 'bd-kids' }, ...kids.map((c) => line(c, depth + 1)), more > 0 ? h('div', { class: 'bd-row d' + (depth + 1) + ' muted' }, h('span', { class: 'bd-l' }, `en nog ${more} posten`), h('span', { class: 'bd-v' }, money((r.children || []).slice(25).reduce((x, c) => x + c.total, 0)))) : null));
+  };
+  return h('div', { class: 'bd' },
+    ...sections.map((sec) => h('section', { class: 'bd-sec' },
+      h('div', { class: 'bd-head' }, h('span', {}, sec.title), h('span', { class: 'bd-v ' + (sec.cls || '') }, (sec.sign || '') + money(sec.total))),
+      ...sec.rows.map((r) => line(r, 0)))),
+    note ? h('p', { class: 'hint bd-note' }, note) : null);
+}
+
+function renderTileDetail() {
+  const el = $('#tile-detail'); const id = state.openTile; const a = state.a;
+  if (!id || !a) { el.hidden = true; el.replaceChildren(); return; }
+  el.hidden = false;
+  const n = a.months.length;
+  let title, intro, body;
+  const close = h('button', { type: 'button', class: 'btn ghost', onclick: () => { state.openTile = null; renderOverzicht(); } }, 'Sluiten');
+  if (id === 'bij') {
+    const ts = a.tx.filter((t) => t.group === 'inkomen');
+    const rows = catsOf(ts, 1);
+    title = `Bij in ${n} maanden`; intro = 'Alles wat binnenkwam, per categorie. Klik op een regel om te zien van wie.';
+    body = breakdown([{ title: 'Inkomsten', total: rows.reduce((x, r) => x + r.total, 0), rows }]);
+  } else if (id === 'af') {
+    const secs = [['vast', 'Vaste lasten'], ['variabel', 'Overige uitgaven'], ['eenmalig', 'Eenmalige uitgaven']].map(([g, l]) => {
+      const rows = catsOf(a.tx.filter((t) => t.group === g));
+      return { title: l, total: rows.reduce((x, r) => x + r.total, 0), rows };
+    }).filter((sct) => sct.rows.length);
+    title = `Af in ${n} maanden`; intro = 'Alles wat eruit ging, per soort en categorie. Overboekingen naar je eigen rekeningen tellen niet mee.';
+    body = breakdown(secs);
+  } else if (id === 'normaal') {
+    const full = new Set(a.fullMonths.length ? a.fullMonths : a.months); const m = full.size;
+    const secs = [['vast', 'Vaste lasten'], ['variabel', 'Overige uitgaven']].map(([g, l]) => {
+      const rows = catsOf(a.tx.filter((t) => t.group === g && full.has(t.month)), -1, m);
+      return { title: l, total: rows.reduce((x, r) => x + r.total, 0), rows };
+    });
+    title = 'Normale maand'; intro = `Gemiddeld per maand over ${m} volledige maanden, zonder eenmalige uitgaven.`;
+    body = breakdown(secs, { note: 'Bedragen zijn gemiddelden per maand. Een post die je één keer per jaar betaalt telt dus voor een twaalfde mee.' });
+  } else {
+    const fc = forecast(); const p = fc.params;
+    const active = a.recurring.filter((r) => r.status !== 'gestopt?' && r.freq !== 'incidenteel');
+    const vast = active.filter((r) => !r.sparen).map((r) => ({ label: cleanName(r.name), total: r.monthly, n: null }));
+    const sparen = active.filter((r) => r.sparen && r.freq === 'maandelijks').map((r) => ({ label: cleanName(r.name), total: r.monthly }));
+    const inc = a.incomeStreams.map((r) => ({ label: cleanName(r.name), total: r.base }));
+    const edited = !!state.fc;
+    title = 'Over per maand, verwacht'; intro = 'Zo is het verwachte bedrag opgebouwd. Klik op een regel voor de posten.';
+    body = breakdown([{ title: 'Opbouw per maand', total: fc.rows[0]?.netto ?? 0, cls: (fc.rows[0]?.netto ?? 0) >= 0 ? 'pos' : 'neg', rows: [
+      { label: 'Vast inkomen', total: p.inkomen, sign: '+ ', children: edited ? [] : inc },
+      { label: 'Vaste lasten', total: p.vast, sign: '− ', children: edited ? [] : vast },
+      { label: 'Vast sparen', total: p.sparen, sign: '− ', children: edited ? [] : sparen },
+      { label: 'Overige uitgaven in een normale maand', total: p.variabel, sign: '− ' },
+    ] }], { note: (edited ? 'Je hebt de aannames op het tabblad Prognose aangepast; die bedragen staan hier. ' : '') + 'Overige uitgaven is de middelste maand van de periode (de helft van de maanden gaf je meer uit, de helft minder). Vakantiegeld, bonussen en eenmalige uitgaven tellen hier niet mee.' });
+  }
+  el.replaceChildren(h('header', { class: 'bd-top' }, h('div', {}, h('h2', {}, title), h('p', {}, intro)), close), body);
+}
+
 function renderOverzicht() {
   const a = state.a, k = a.kpi, n = a.months.length;
   const fc = forecast();
+  const ot = (id, ...args) => tileBtn(id, ...args);
   $('#tiles-overzicht').replaceChildren(
-    tile(`Bij in ${n} maanden`, eur0(k.totIn), `Gemiddeld ${eur0(k.totIn / n)} per maand`),
-    tile(`Af in ${n} maanden`, eur0(k.totOut), k.eenmaligTotal ? `Waarvan ${eur0(k.eenmaligTotal)} eenmalig` : `Gemiddeld ${eur0(k.totOut / n)} per maand`),
-    tile('Normale maand', eur0(k.regular), 'Vaste lasten en overige uitgaven, zonder eenmalig'),
-    tile('Over per maand, verwacht', eur0(fc.rows[0]?.netto ?? 0), 'Na vaste lasten, sparen en een normale maand', (fc.rows[0]?.netto ?? 0) >= 0 ? 'pos' : 'neg'),
+    ot('bij', `Bij in ${n} maanden`, eur0(k.totIn), `Gemiddeld ${eur0(k.totIn / n)} per maand`),
+    ot('af', `Af in ${n} maanden`, eur0(k.totOut), k.eenmaligTotal ? `Waarvan ${eur0(k.eenmaligTotal)} eenmalig` : `Gemiddeld ${eur0(k.totOut / n)} per maand`),
+    ot('normaal', 'Normale maand', eur0(k.regular), 'Vaste lasten en overige uitgaven, zonder eenmalig'),
+    ot('over', 'Over per maand, verwacht', eur0(fc.rows[0]?.netto ?? 0), 'Na vaste lasten, sparen en een normale maand', (fc.rows[0]?.netto ?? 0) >= 0 ? 'pos' : 'neg'),
   );
+  renderTileDetail();
   monthChart($('#ch-months'), a.monthRows);
   const notes = $('#notes');
   notes.replaceChildren(...(a.notes.length ? a.notes.map((x) => h('li', { class: x.kind }, x.text)) : [h('li', { class: 'empty' }, 'Niets bijzonders gevonden.')]));
