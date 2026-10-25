@@ -462,13 +462,30 @@ function barChart(el, data, color, name) {
 }
 
 // ---------- prognose ----------
+// overige uitgaven per maand, eventueel zonder losse uitgaven boven een grens
+function varStats() {
+  const a = state.a; const cap = Number(state.settings.forecastCap) || 0;
+  const months = a.fullMonths.length ? a.fullMonths : a.months; const mset = new Set(months);
+  const excluded = [];
+  const totals = months.map(() => 0); const idx = new Map(months.map((m, i) => [m, i]));
+  for (const t of a.tx) {
+    if (t.group !== 'variabel' || !mset.has(t.month)) continue;
+    if (cap && -t.amount > cap) { excluded.push(t); continue; }
+    totals[idx.get(t.month)] -= t.amount;
+  }
+  const sorted = [...totals].sort((x, y) => x - y);
+  const med = sorted.length ? (sorted.length % 2 ? sorted[sorted.length >> 1] : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2) : 0;
+  const mean = totals.reduce((x, v) => x + v, 0) / Math.max(1, totals.length);
+  const qi = (sorted.length - 1) * 0.75, lo = Math.floor(qi); const q75 = sorted.length ? sorted[lo] + (sorted[Math.min(lo + 1, sorted.length - 1)] - sorted[lo]) * (qi - lo) : 0;
+  return { cap, base: Math.round(med * 100) / 100, high: Math.round(Math.max(mean, q75) * 100) / 100, excluded: excluded.sort((x, y) => x.amount - y.amount), months: months.length };
+}
 function defaults() {
-  const a = state.a;
-  return { inkomen: a.kpi.incomeBase, vast: a.kpi.vastPm, sparen: a.kpi.sparenPm, variabel: a.kpi.varBase, ruim: a.kpi.varHigh, start: a.balance ?? 0, vakantiegeld: true };
+  const a = state.a; const v = varStats();
+  return { inkomen: a.kpi.incomeBase, vast: a.kpi.vastPm, sparen: a.kpi.sparenPm, variabel: v.base, ruim: v.high, start: a.balance ?? 0, vakantiegeld: true };
 }
 function forecast() {
   const a = state.a; const p = { ...defaults(), ...(state.fc || {}) };
-  const extraRuim = Math.max(0, a.kpi.varHigh - a.kpi.varBase);
+  const d0 = defaults(); const extraRuim = Math.max(0, d0.ruim - d0.variabel);
   const rows = []; let sb = p.start, sr = p.start;
   a.forecast.forEach((f) => {
     const extra = p.vakantiegeld ? Math.max(0, f.inkomen - a.kpi.incomeBase) : 0;
@@ -500,7 +517,7 @@ function monthBuild(r, startSaldo) {
     { title: 'Af', total: r.af, sign: '− ', rows: [
       { label: 'Vaste lasten', total: r.vast, children: vast },
       { label: 'Vast sparen (blijft van jou, gaat naar je spaarrekening)', total: r.sparen, children: sparen },
-      { label: 'Overige uitgaven in een normale maand', total: r.variabel },
+      { label: 'Overige uitgaven in een normale maand' + (state.settings.forecastCap ? ` (zonder losse uitgaven boven ${eur0(state.settings.forecastCap)})` : ''), total: r.variabel },
     ] },
     { title: 'Saldo betaalrekening', total: Math.abs(r.saldo), sign: r.saldo < 0 ? '− ' : '', cls: r.saldo < 0 ? 'neg' : '', rows: [
       { label: 'Begin van de maand', total: Math.abs(startSaldo), sign: startSaldo < 0 ? '− ' : '' },
@@ -522,6 +539,15 @@ function renderPrognose() {
   const inputs = { inkomen: '#f-inkomen', vast: '#f-vast', sparen: '#f-sparen', variabel: '#f-var', start: '#f-start' };
   for (const [k, sel] of Object.entries(inputs)) { const el = $(sel); if (el !== document.activeElement) el.value = Math.round(p[k]); }
   $('#f-vg').checked = !!p.vakantiegeld;
+  const cap = $('#f-cap'); if (cap !== document.activeElement) cap.value = state.settings.forecastCap || '';
+  const vs = varStats(); const capInfo = $('#cap-info');
+  if (vs.cap && vs.excluded.length) {
+    const tot = -vs.excluded.reduce((x, t) => x + t.amount, 0);
+    capInfo.hidden = false;
+    capInfo.replaceChildren(h('details', {}, h('summary', {}, `${vs.excluded.length} ${vs.excluded.length === 1 ? 'uitgave' : 'uitgaven'} boven ${eur0(vs.cap)} niet meegeteld (samen ${eur0(tot)})`),
+      h('ul', { class: 'cap-list' }, ...vs.excluded.slice(0, 40).map((t) => h('li', {}, h('span', {}, `${shortDate(t.date)}${a.months.length > 12 ? '-' + t.date.slice(2, 4) : ''} ${cleanName(t.name)}`, h('small', {}, CAT[t.cat].label)), h('b', {}, eur(-t.amount)))))));
+  } else if (vs.cap) { capInfo.hidden = false; capInfo.replaceChildren(h('span', {}, `Geen losse uitgaven boven ${eur0(vs.cap)}.`)); }
+  else capInfo.hidden = true;
   $('#saldo-note').textContent = a.balance != null
     ? 'Tot de laatste maand het werkelijke saldo van je geladen rekening(en), daarna de prognose in twee scenario\'s.'
     : 'Je export bevat geen saldo. Vul bij de aannames je huidige saldo in; de lijn laat zien hoe dat zich ontwikkelt.';
@@ -544,6 +570,12 @@ function renderPrognose() {
 }));
 $('#f-vg').addEventListener('change', (e) => { state.fc = { ...(state.fc || {}), vakantiegeld: e.target.checked }; renderPrognose(); });
 $('#f-reset').addEventListener('click', () => { state.fc = null; renderPrognose(); });
+$('#f-cap').addEventListener('input', (e) => {
+  const v = Number(e.target.value);
+  state.settings.forecastCap = v > 0 ? v : 0;
+  if (state.fc) delete state.fc.variabel; // berekende waarde opnieuw gebruiken
+  saveSettings(); renderPrognose();
+});
 
 function saldoChart(el, a, R) {
   const W = el.clientWidth; if (!W) return;

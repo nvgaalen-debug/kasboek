@@ -150,6 +150,9 @@
             <label for="f-sparen">Vast sparen per maand</label><input id="f-sparen" type="number" step="10" inputmode="decimal">
             <label for="f-var">Overige uitgaven per maand (basis)</label><input id="f-var" type="number" step="10" inputmode="decimal">
             <label for="f-start">Saldo nu</label><input id="f-start" type="number" step="10" inputmode="decimal">
+            <label for="f-cap">Losse uitgaven boven dit bedrag niet meetellen</label><input id="f-cap" type="number" min="0" step="50" inputmode="decimal" placeholder="geen grens">
+            <p class="hint cap-hint">Bijvoorbeeld 250: een losse uitgave boven € 250 (een nieuwe wasmachine, een vakantie) telt dan niet mee in de overige uitgaven van een normale maand.</p>
+            <div class="cap-info" id="cap-info" hidden></div>
             <label class="check-row"><input id="f-vg" type="checkbox" checked> Vakantiegeld meerekenen</label>
             <button class="btn ghost" id="f-reset" type="button">Terug naar berekende waarden</button>
           </div>

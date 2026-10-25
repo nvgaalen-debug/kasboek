@@ -329,3 +329,11 @@ body {
 .prog-detail .bd { gap: 10px; }
 .prog-detail .bd-head { font-size: 14px; }
 .prog-row td:first-child { white-space: nowrap; }
+
+.form .cap-hint, .form .cap-info { grid-column: 1 / -1; }
+.cap-info { font-size: 13px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.cap-info summary { cursor: pointer; color: var(--accent); }
+.cap-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; max-height: 260px; overflow: auto; }
+.cap-list li { display: flex; justify-content: space-between; gap: 12px; }
+.cap-list small { display: block; color: var(--muted); }
+.cap-list b { font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
