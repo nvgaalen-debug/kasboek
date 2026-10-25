@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kasboek</title>
+<meta name="description" content="Zie waar je geld blijft: inkomsten, uitgaven, vaste lasten en een prognose op basis van je bankexport. Alles wordt op je eigen apparaat verwerkt.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="bar">
+  <div class="bar-in">
+    <a class="brand" href="./" aria-label="Kasboek, begin opnieuw">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7 9h10M7 13h10M7 17h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Kasboek</span>
+    </a>
+    <span class="local-badge" title="Je bestanden worden alleen in deze browser gelezen en nergens naartoe gestuurd.">Lokaal verwerkt</span>
+    <div class="bar-actions" id="bar-actions" hidden>
+      <button class="btn ghost" id="btn-add" type="button">Bestand toevoegen</button>
+      <button class="btn ghost" id="btn-settings" type="button">Instellingen</button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <!-- Startscherm -->
+  <section id="start" class="start">
+    <div class="start-copy">
+      <p class="eyebrow">Huishoudboekje uit je bankexport</p>
+      <h1>Waar blijft je geld?</h1>
+      <p class="lede">Sleep een export van je bank hierheen. Je ziet meteen je inkomsten en uitgaven per maand, je vaste lasten en wat je de komende twaalf maanden overhoudt.</p>
+      <ul class="promises">
+        <li><strong>Blijft op je apparaat.</strong> Het bestand wordt in je browser gelezen. Er gaat niets naar een server, ook niet naar ons.</li>
+        <li><strong>Geen account nodig.</strong> Sluit je het tabblad, dan is alles weg, tenzij je zelf kiest om je indeling te bewaren.</li>
+      </ul>
+    </div>
+    <div class="start-drop">
+      <label class="drop" id="drop" for="file">
+        <input type="file" id="file" accept=".csv,.txt,.tab,.pdf" multiple>
+        <svg viewBox="0 0 48 48" width="44" height="44" aria-hidden="true"><path d="M24 30V10m0 0-7 7m7-7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 30v6a3 3 0 0 0 3 3h22a3 3 0 0 0 3-3v-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+        <span class="drop-title">Sleep je bankexport hierheen</span>
+        <span class="drop-sub">of klik om een bestand te kiezen. CSV, TXT of Rabobank-PDF. Meerdere rekeningen tegelijk mag.</span>
+      </label>
+      <p class="error" id="load-error" role="alert" hidden></p>
+      <button class="btn link" id="btn-sample" type="button">Bekijk eerst met voorbeeldgegevens</button>
+      <details class="howto">
+        <summary>Hoe exporteer ik mijn transacties?</summary>
+        <p>Log in bij internetbankieren op een computer en zoek bij je betaalrekening naar <em>Downloaden</em> of <em>Exporteren</em>. Kies een periode van minstens drie maanden, liefst een jaar. Kies CSV als formaat.</p>
+        <table class="banks">
+          <tbody>
+            <tr><th scope="row">Rabobank</th><td>CSV of het PDF-rekeningafschrift</td></tr>
+            <tr><th scope="row">ING</th><td>CSV (komma of puntkomma)</td></tr>
+            <tr><th scope="row">ABN AMRO</th><td>TXT (tab-gescheiden)</td></tr>
+            <tr><th scope="row">ASN, SNS, RegioBank</th><td>CSV</td></tr>
+            <tr><th scope="row">Triodos</th><td>CSV</td></tr>
+            <tr><th scope="row">bunq</th><td>CSV</td></tr>
+            <tr><th scope="row">Andere bank</th><td>CSV met kolommen voor datum, bedrag en naam</td></tr>
+          </tbody>
+        </table>
+      </details>
+    </div>
+  </section>
+
+  <!-- Resultaat -->
+  <section id="result" hidden>
+    <div class="sample-banner" id="sample-banner" hidden>Je bekijkt <strong>voorbeeldgegevens</strong> van een verzonnen huishouden. <button class="btn link" id="btn-sample-off" type="button">Eigen bestand laden</button></div>
+    <div class="summary">
+      <div>
+        <h1 id="r-title">Je huishoudboekje</h1>
+        <p class="meta" id="r-meta"></p>
+      </div>
+      <p class="check" id="r-check" hidden></p>
+    </div>
+
+    <nav class="tabs" role="tablist" aria-label="Onderdelen">
+      <button role="tab" id="t-overzicht" aria-controls="p-overzicht" aria-selected="true" data-tab="overzicht">Overzicht</button>
+      <button role="tab" id="t-vast" aria-controls="p-vast" aria-selected="false" data-tab="vast">Vaste lasten</button>
+      <button role="tab" id="t-prognose" aria-controls="p-prognose" aria-selected="false" data-tab="prognose">Prognose</button>
+      <button role="tab" id="t-cat" aria-controls="p-cat" aria-selected="false" data-tab="cat">Categorieën</button>
+      <button role="tab" id="t-tx" aria-controls="p-tx" aria-selected="false" data-tab="tx">Transacties</button>
+    </nav>
+
+    <section class="panel" id="p-overzicht" role="tabpanel" aria-labelledby="t-overzicht">
+      <div class="tiles" id="tiles-overzicht"></div>
+      <div class="grid">
+        <article class="card wide">
+          <header><h2>Bij en af per maand</h2><p>Links wat er binnenkwam, rechts wat eruit ging. Overboekingen tussen je eigen rekeningen tellen niet mee.</p></header>
+          <div class="legend" id="leg-months"></div>
+          <div class="chart" id="ch-months"></div>
+        </article>
+        <article class="card">
+          <header><h2>Opvallend</h2><p>Wat afwijkt van het normale patroon.</p></header>
+          <ul class="notes" id="notes"></ul>
+        </article>
+        <article class="card">
+          <header><h2>Waar het geld naartoe gaat</h2><p>Uitgaven per categorie over de hele periode.</p></header>
+          <div id="ch-cats" class="hbars"></div>
+        </article>
+        <article class="card">
+          <header><h2>Waar het geld vandaan komt</h2><p>Inkomsten per categorie.</p></header>
+          <table class="ledger"><thead><tr><th>Categorie</th><th class="num">Totaal</th><th class="num">Per maand</th></tr></thead><tbody id="tb-income"></tbody></table>
+        </article>
+        <article class="card">
+          <header><h2>Grote eenmalige uitgaven</h2><p>Afschrijvingen vanaf de drempel uit Instellingen die niet terugkomen.</p></header>
+          <table class="ledger"><thead><tr><th>Datum</th><th>Aan</th><th class="num">Af</th></tr></thead><tbody id="tb-eenmalig"></tbody></table>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel" id="p-vast" role="tabpanel" aria-labelledby="t-vast" hidden>
+      <div class="tiles" id="tiles-vast"></div>
+      <article class="card">
+        <header><h2>Alle vaste lasten</h2><p>Herkend aan afschrijvingen die elke maand, elk kwartaal of jaarlijks terugkomen, of aan het soort ontvanger. Het maandbedrag is het laatst betaalde bedrag.</p></header>
+        <div class="scroll">
+          <table class="ledger" id="tbl-vast"><thead><tr><th>Post</th><th>Categorie</th><th>Hoe vaak</th><th class="num">Per maand</th><th class="num">Per jaar</th><th>Status</th></tr></thead><tbody id="tb-vast"></tbody><tfoot id="tf-vast"></tfoot></table>
+        </div>
+      </article>
+      <article class="card">
+        <header><h2>Vaste lasten per maand</h2><p>Wat er werkelijk aan vaste lasten is afgeschreven.</p></header>
+        <div class="chart short" id="ch-vast"></div>
+      </article>
+    </section>
+
+    <section class="panel" id="p-prognose" role="tabpanel" aria-labelledby="t-prognose" hidden>
+      <div class="tiles" id="tiles-prognose"></div>
+      <div class="grid two">
+        <article class="card wide">
+          <header><h2>Saldo: werkelijk en verwacht</h2><p id="saldo-note">Tot de laatste maand het werkelijke saldo, daarna de prognose in twee scenario's.</p></header>
+          <div class="legend" id="leg-saldo"></div>
+          <div class="chart" id="ch-saldo"></div>
+        </article>
+        <article class="card">
+          <header><h2>Pas de aannames aan</h2><p>De prognose rekent direct mee.</p></header>
+          <div class="form">
+            <label for="f-inkomen">Vast inkomen per maand</label><input id="f-inkomen" type="number" step="10" inputmode="decimal">
+            <label for="f-vast">Vaste lasten per maand</label><input id="f-vast" type="number" step="10" inputmode="decimal">
+            <label for="f-sparen">Vast sparen per maand</label><input id="f-sparen" type="number" step="10" inputmode="decimal">
+            <label for="f-var">Overige uitgaven per maand (basis)</label><input id="f-var" type="number" step="10" inputmode="decimal">
+            <label for="f-start">Saldo nu</label><input id="f-start" type="number" step="10" inputmode="decimal">
+            <label class="check-row"><input id="f-vg" type="checkbox" checked> Vakantiegeld meerekenen</label>
+            <button class="btn ghost" id="f-reset" type="button">Terug naar berekende waarden</button>
+          </div>
+        </article>
+        <article class="card">
+          <header><h2>Per maand</h2><p>Basis gebruikt een normale maand, ruim het gemiddelde van de periode.</p></header>
+          <div class="scroll"><table class="ledger"><thead><tr><th>Maand</th><th class="num">Bij</th><th class="num">Af</th><th class="num">Over</th><th class="num">Saldo</th></tr></thead><tbody id="tb-prog"></tbody></table></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel" id="p-cat" role="tabpanel" aria-labelledby="t-cat" hidden>
+      <article class="card">
+        <header><h2>Indeling per ontvanger en afzender</h2><p>Kies een andere categorie en alles van die naam verhuist mee. Kies <em>Eigen rekening / sparen</em> voor overboekingen naar je eigen spaarrekening; die tellen dan niet als uitgave.</p></header>
+        <div class="filters">
+          <input id="c-q" type="search" placeholder="Zoek een naam" aria-label="Zoek een naam">
+          <label class="check-row"><input id="c-only" type="checkbox"> Alleen niet ingedeeld</label>
+        </div>
+        <div class="scroll tall"><table class="ledger" id="tbl-cat"><thead><tr><th>Naam</th><th class="num">Aantal</th><th class="num">Bij</th><th class="num">Af</th><th>Categorie</th></tr></thead><tbody id="tb-cat"></tbody></table></div>
+      </article>
+    </section>
+
+    <section class="panel" id="p-tx" role="tabpanel" aria-labelledby="t-tx" hidden>
+      <article class="card">
+        <header><h2>Alle transacties</h2><p id="tx-count"></p></header>
+        <div class="filters">
+          <input id="x-q" type="search" placeholder="Zoek op naam of omschrijving" aria-label="Zoeken">
+          <select id="x-cat" aria-label="Categorie"></select>
+          <select id="x-month" aria-label="Maand"></select>
+          <button class="btn ghost" id="x-export" type="button">Download als CSV</button>
+        </div>
+        <div class="scroll tall"><table class="ledger" id="tbl-tx"><thead><tr><th>Datum</th><th>Naam en omschrijving</th><th>Categorie</th><th class="num">Bij</th><th class="num">Af</th></tr></thead><tbody id="tb-tx"></tbody></table></div>
+      </article>
+    </section>
+  </section>
+</main>
+
+<dialog id="dlg-settings" aria-labelledby="s-title">
+  <form method="dialog" class="dlg">
+    <h2 id="s-title">Instellingen</h2>
+    <label for="s-holders">Naam van de rekeninghouder(s)</label>
+    <input id="s-holders" type="text" placeholder="bijv. J. de Vries, A. de Vries-Bakker">
+    <p class="hint">Overboekingen aan deze namen zie ik als verplaatsing naar je eigen rekening, niet als uitgave. Scheid meerdere namen met een komma.</p>
+    <label for="s-ibans">Eigen rekeningnummers (IBAN)</label>
+    <textarea id="s-ibans" rows="2" placeholder="NL00BANK0123456789"></textarea>
+    <p class="hint">Bijvoorbeeld je spaarrekening of een gezamenlijke rekening. Rekeningen van geladen bestanden staan er automatisch in.</p>
+    <label for="s-threshold">Grote eenmalige uitgave vanaf</label>
+    <input id="s-threshold" type="number" min="100" step="50">
+    <fieldset>
+      <legend>Bewaren op dit apparaat</legend>
+      <label class="check-row"><input id="s-keep-rules" type="checkbox"> Mijn categorie-indeling en instellingen</label>
+      <label class="check-row"><input id="s-keep-tx" type="checkbox"> Ook mijn transacties, zodat ik ze niet opnieuw hoef te laden</label>
+      <p class="hint">Opgeslagen in de opslag van deze browser. Anderen op dit apparaat kunnen het zien.</p>
+    </fieldset>
+    <div class="dlg-actions">
+      <button class="btn danger" id="s-wipe" type="button">Alles wissen</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" value="cancel" type="submit">Annuleren</button>
+      <button class="btn primary" id="s-save" value="save" type="submit">Opslaan</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="tip" id="tip" hidden></div>
+<input type="file" id="file2" accept=".csv,.txt,.tab,.pdf" multiple hidden>
+<footer class="foot">
+  <p>Kasboek leest je bankexport alleen in deze browser. Er wordt niets verzonden of bewaard op een server. De prognose is een schatting op basis van je eigen cijfers en geen financieel advies.</p>
+</footer>
+<script type="module" src="app.js"></script>
+</body>
+</html>

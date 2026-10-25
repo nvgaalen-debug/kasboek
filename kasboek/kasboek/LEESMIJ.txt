@@ -1,0 +1,19 @@
+Kasboek - huishoudboekje uit je bankexport
+
+Online zetten via Netlify
+1. Ga naar https://app.netlify.com/drop (gratis account).
+2. Sleep deze hele map (kasboek) in het venster.
+3. Je krijgt direct een link, bijv. https://iets-willekeurigs.netlify.app.
+   Onder Site configuration > Change site name kun je de naam aanpassen.
+Bijwerken: open je site in Netlify > Deploys en sleep de nieuwe map erin.
+
+Privacy
+- Alle verwerking gebeurt in de browser van de gebruiker. Er is geen server-code.
+- Het bestand _headers zet een strikte Content-Security-Policy (connect-src 'self'):
+  de pagina kan niets naar andere websites sturen.
+- Er worden geen externe scripts, lettertypen of trackers geladen.
+- pdf.js (Apache 2.0, Mozilla) staat lokaal in lib/ voor het lezen van Rabobank-PDF's.
+
+Ondersteund
+Rabobank (CSV en PDF-rekeningafschrift), ING, ABN AMRO (TXT), ASN/SNS/RegioBank,
+Triodos, bunq en elke CSV met kolommen voor datum, bedrag en naam/omschrijving.
