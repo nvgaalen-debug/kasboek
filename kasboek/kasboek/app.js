@@ -213,9 +213,10 @@ function renderSummary() {
 function tile(lbl, big, sub, cls = '') { return h('div', { class: 'tile' }, h('span', { class: 'lbl' }, lbl), h('span', { class: 'big ' + cls }, big), sub ? h('span', { class: 'sub' }, sub) : null); }
 
 function tileBtn(id, lbl, big, sub, cls = '') {
-  const open = state.openTile === id;
-  return h('button', { type: 'button', class: 'tile tile-btn' + (open ? ' open' : ''), 'aria-expanded': String(open), 'aria-controls': 'tile-detail',
-    onclick: () => { state.openTile = open ? null : id; renderOverzicht(); if (!open) document.getElementById('tile-detail')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } },
+  const tab = state.tab; state.openTiles = state.openTiles || {};
+  const open = state.openTiles[tab] === id; const panelId = 'td-' + tab;
+  return h('button', { type: 'button', class: 'tile tile-btn' + (open ? ' open' : ''), 'aria-expanded': String(open), 'aria-controls': panelId,
+    onclick: () => { state.openTiles[tab] = open ? null : id; renderTab(tab); if (!open) document.getElementById(panelId)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } },
   h('span', { class: 'lbl' }, lbl, h('span', { class: 'chev', 'aria-hidden': 'true' }, open ? '▾' : '▸')), h('span', { class: 'big ' + cls }, big), sub ? h('span', { class: 'sub' }, sub) : null);
 }
 
@@ -253,13 +254,16 @@ function breakdown(sections, { unit = '', note = '' } = {}) {
     note ? h('p', { class: 'hint bd-note' }, note) : null);
 }
 
+function closeBtn(tab) { return h('button', { type: 'button', class: 'btn ghost', onclick: () => { state.openTiles[tab] = null; renderTab(tab); } }, 'Sluiten'); }
+function detailPanel(el, title, intro, body, tab) { el.hidden = false; el.replaceChildren(h('header', { class: 'bd-top' }, h('div', {}, h('h2', {}, title), h('p', {}, intro)), closeBtn(tab)), body); }
+
 function renderTileDetail() {
-  const el = $('#tile-detail'); const id = state.openTile; const a = state.a;
+  const el = $('#td-overzicht'); const id = (state.openTiles || {}).overzicht; const a = state.a;
   if (!id || !a) { el.hidden = true; el.replaceChildren(); return; }
   el.hidden = false;
   const n = a.months.length;
   let title, intro, body;
-  const close = h('button', { type: 'button', class: 'btn ghost', onclick: () => { state.openTile = null; renderOverzicht(); } }, 'Sluiten');
+  const close = closeBtn('overzicht');
   if (id === 'bij') {
     const ts = a.tx.filter((t) => t.group === 'inkomen');
     const rows = catsOf(ts, 1);
@@ -569,16 +573,17 @@ function renderSparen() {
   const net = naar - van;
   const vast = a.recurring.filter((r) => r.sparen && r.freq === 'maandelijks' && r.status !== 'gestopt?');
   $('#tiles-sparen').replaceChildren(
-    tile('Naar je spaarrekening', eur0(naar), `${ts.filter((t) => t.amount < 0).length} overboekingen`),
-    tile('Terug naar je betaalrekening', eur0(van), `${ts.filter((t) => t.amount > 0).length} overboekingen`),
-    tile(net >= 0 ? 'Netto gespaard' : 'Netto opgenomen', eur0(Math.abs(net)), `Over ${a.months.length} maanden`, net >= 0 ? 'pos' : 'neg'),
-    tile('Vast per maand', eur0(a.kpi.sparenPm), vast.length ? (() => {
+    tileBtn('naar', 'Naar je spaarrekening', eur0(naar), `${ts.filter((t) => t.amount < 0).length} overboekingen`),
+    tileBtn('terug', 'Terug naar je betaalrekening', eur0(van), `${ts.filter((t) => t.amount > 0).length} overboekingen`),
+    tileBtn('netto', net >= 0 ? 'Netto gespaard' : 'Netto opgenomen', eur0(Math.abs(net)), `Over ${a.months.length} maanden`, net >= 0 ? 'pos' : 'neg'),
+    tileBtn('vast', 'Vast per maand', eur0(a.kpi.sparenPm), vast.length ? (() => {
       const ids = new Set(vast.flatMap((r) => [...r.ids])); const lastM = a.months[a.months.length - 1];
       const recent = ts.filter((t) => ids.has(t.id) && t.amount < 0); const lm = recent.length ? recent[recent.length - 1].month : lastM;
       const by = new Map(); recent.filter((t) => t.month === lm).forEach((t) => { const p = potOf(t).pot; by.set(p, (by.get(p) || 0) - t.amount); });
       return [...by].map(([p, v]) => `${eur0(v)} naar ${p}`).join(' en ');
     })() : 'Geen vaste maandelijkse overboeking'),
   );
+  renderSparenDetail(ts, vast);
   // grafiek: naar boven, van onder
   const el = $('#ch-sparen'); const W = el.clientWidth;
   if (W) {
@@ -623,6 +628,40 @@ function renderSparen() {
     h('td', {}, p.pot, p.note && p.note.toLowerCase() !== p.pot.toLowerCase() ? h('span', { class: 'sm' }, p.note) : null),
     h('td', { class: 'num ' + (t.amount < 0 ? 'bij' : 'af') }, (t.amount < 0 ? '→ ' : '← ') + eur(Math.abs(t.amount)))); }));
 }
+
+function renderSparenDetail(ts, vast) {
+  const el = $('#td-sparen'); const id = (state.openTiles || {}).sparen; const a = state.a;
+  if (!id) { el.hidden = true; el.replaceChildren(); return; }
+  const yr = a.months.length > 12;
+  const tline = (t) => { const p = potOf(t); return { label: shortDate(t.date) + (yr ? "-" + t.date.slice(2, 4) : '') + (p.note && p.note.toLowerCase() !== p.pot.toLowerCase() ? ' · ' + p.note : ''), total: Math.abs(t.amount) }; };
+  const byPot = (list) => {
+    const m = new Map(); list.forEach((t) => { const p = potOf(t).pot; if (!m.has(p)) m.set(p, []); m.get(p).push(t); });
+    return [...m].map(([pot, l]) => ({ label: pot, n: l.length, total: l.reduce((x, t) => x + Math.abs(t.amount), 0), children: [...l].reverse().map(tline) })).sort((x, y) => y.total - x.total);
+  };
+  const out = ts.filter((t) => t.amount < 0), back = ts.filter((t) => t.amount > 0);
+  if (id === 'naar') {
+    const rows = byPot(out);
+    detailPanel(el, 'Naar je spaarrekening', 'Per spaarrekening of spaarpot. Klik op een regel voor de afzonderlijke overboekingen.', breakdown([{ title: 'Weggezet', total: rows.reduce((x, r) => x + r.total, 0), rows }]), 'sparen');
+  } else if (id === 'terug') {
+    const rows = byPot(back);
+    detailPanel(el, 'Terug naar je betaalrekening', 'Wat je van je spaarrekeningen terughaalde, met de omschrijving die je erbij zette.', breakdown([{ title: 'Teruggehaald', total: rows.reduce((x, r) => x + r.total, 0), rows }]), 'sparen');
+  } else if (id === 'netto') {
+    const pots = new Map(); ts.forEach((t) => { const p = potOf(t).pot; if (!pots.has(p)) pots.set(p, { naar: 0, van: 0, n: 0 }); const r = pots.get(p); r.n++; if (t.amount < 0) r.naar -= t.amount; else r.van += t.amount; });
+    const rows = [...pots].map(([p, r]) => ({ label: p, n: r.n, total: Math.abs(r.naar - r.van), sign: r.naar - r.van >= 0 ? '+ ' : '− ', cls: r.naar - r.van >= 0 ? 'pos' : 'neg', children: [{ label: 'Naartoe', total: r.naar }, { label: 'Terug', total: r.van }] })).sort((x, y) => y.total - x.total);
+    const months = a.months.map((m) => { const mt = ts.filter((t) => t.month === m); const v = -mt.reduce((x, t) => x + t.amount, 0); return { label: monthLabel(m, true), total: Math.abs(v), sign: v >= 0 ? '+ ' : '− ', cls: v >= 0 ? 'pos' : 'neg', children: mt.map((t) => ({ ...tline(t), label: potOf(t).pot + ' · ' + tline(t).label, total: Math.abs(t.amount) })) }; }).filter((r) => r.total > 0.005 || r.children.length);
+    const net = -ts.reduce((x, t) => x + t.amount, 0);
+    detailPanel(el, net >= 0 ? 'Netto gespaard' : 'Netto opgenomen', 'Plus is meer weggezet dan teruggehaald, min is meer teruggehaald.', breakdown([
+      { title: 'Per spaarpot', total: Math.abs(net), sign: net >= 0 ? '+ ' : '− ', cls: net >= 0 ? 'pos' : 'neg', rows },
+      { title: 'Per maand', total: Math.abs(net), sign: net >= 0 ? '+ ' : '− ', cls: net >= 0 ? 'pos' : 'neg', rows: months },
+    ]), 'sparen');
+  } else {
+    const ids = new Set(vast.flatMap((r) => [...r.ids]));
+    const by = new Map(); ts.filter((t) => ids.has(t.id) && t.amount < 0).forEach((t) => { const p = potOf(t).pot; if (!by.has(p)) by.set(p, []); by.get(p).push(t); });
+    const rows = [...by].map(([pot, l]) => { const lm = l[l.length - 1].month; return { label: pot, n: l.length, total: -l.filter((t) => t.month === lm).reduce((x, t) => x + t.amount, 0), children: [...l].reverse().slice(0, 24).map(tline) }; }).sort((x, y) => y.total - x.total);
+    detailPanel(el, 'Vast per maand', 'Overboekingen die elke maand met ongeveer hetzelfde bedrag terugkomen. Klik voor de afzonderlijke maanden.', rows.length ? breakdown([{ title: 'Vaste spaarinleg per maand', total: rows.reduce((x, r) => x + r.total, 0), rows }], { note: 'Het bedrag per regel is de laatste maand. Eenmalige of wisselende overboekingen naar je spaarrekening tellen hier niet mee.' }) : h('p', { class: 'hint' }, 'Geen vaste maandelijkse overboeking naar een spaarrekening gevonden.'), 'sparen');
+  }
+}
+function potsLabel(list) { const ps = [...new Set(list.map((t) => potOf(t).pot))]; return ps.join(' + '); }
 
 // ---------- categorieën ----------
 function catSelect(current, auto, onChange) {

@@ -316,3 +316,7 @@ body {
 .summary h1 { position: relative; }
 .summary h1::after { content: ""; display: block; width: 56px; height: 3px; border-radius: 2px; margin-top: 10px; background: linear-gradient(90deg, var(--accent) 0 70%, var(--hero-gold) 70%); }
 @media (prefers-color-scheme: dark) { .card, .tile { box-shadow: none; } }
+
+/* rustige tabbalk boven het patroon */
+.tabs { background: var(--paper); border-radius: 10px 10px 0 0; padding-inline: 4px; box-shadow: 0 -8px 0 var(--paper); }
+.summary { background: color-mix(in srgb, var(--paper) 70%, transparent); border-radius: 10px; }
