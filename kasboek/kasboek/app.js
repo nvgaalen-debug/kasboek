@@ -68,10 +68,12 @@ async function readFile(file) {
   const isPdf = /\.pdf$/i.test(file.name) || (buf[0] === 0x25 && buf[1] === 0x50 && buf[2] === 0x44 && buf[3] === 0x46);
   if (isPdf) {
     const pdfjs = await getPdfjs();
-    return parseRabobankPDF(pdfjs, buf);
+    return parseRabobankPDF(pdfjs, buf, (page, total) => progress(`${file.name}: pagina ${page} van ${total}`));
   }
   return parseCSVFile(decodeText(buf), file.name);
 }
+const dropTitle = $('#drop-title'); const dropTitleText = dropTitle.textContent;
+function progress(text) { dropTitle.textContent = text || dropTitleText; }
 
 async function handleFiles(list, { replace = false } = {}) {
   const files = [...list];
@@ -80,6 +82,7 @@ async function handleFiles(list, { replace = false } = {}) {
   const err = $('#load-error'); err.hidden = true;
   const errors = [];
   if (replace || state.sample) { state.files = []; state.tx = []; state.meta = {}; state.sample = false; }
+  progress('Bezig met lezen…');
   for (const f of files) {
     try {
       const r = await readFile(f);
@@ -92,7 +95,7 @@ async function handleFiles(list, { replace = false } = {}) {
       errors.push(`${f.name}: ${e.message || e}`);
     }
   }
-  drop.classList.remove('busy');
+  drop.classList.remove('busy'); progress('');
   if (errors.length) { err.textContent = errors.join(' '); err.hidden = false; }
   if (!state.tx.length) return;
   finalizeData();
@@ -425,13 +428,13 @@ function renderVast() {
     const counted = r.status !== 'gestopt?' && r.freq !== 'incidenteel';
     return h('tr', { class: counted ? '' : 'muted' },
       h('td', {}, cleanName(r.name), h('span', { class: 'sm' }, `Laatst ${fmtDate(r.lastDate)} · ${eur(r.last)}`)),
-      h('td', {}, CAT[r.cat]?.label || r.cat),
-      h('td', {}, r.freq),
+      h('td', { class: 'hide-sm' }, CAT[r.cat]?.label || r.cat),
+      h('td', { class: 'hide-sm' }, r.freq),
       h('td', { class: 'num' }, counted ? eur(r.monthly) : '–'),
-      h('td', { class: 'num' }, counted ? eur(r.monthly * 12) : '–'),
+      h('td', { class: 'num hide-sm' }, counted ? eur(r.monthly * 12) : '–'),
       h('td', {}, pill(r.freq === 'incidenteel' ? 'eenmalig betaald' : r.status), Math.abs(r.change) >= 0.08 ? h('span', { class: 'sm' }, `${r.change > 0 ? '+' : ''}${Math.round(r.change * 100)}% sinds begin`) : null));
   }));
-  $('#tf-vast').replaceChildren(h('tr', {}, h('td', { colspan: 3 }, 'Totaal meegeteld'), h('td', { class: 'num' }, eur(a.kpi.vastPm)), h('td', { class: 'num' }, eur(a.kpi.vastPm * 12)), h('td')));
+  $('#tf-vast').replaceChildren(h('tr', {}, h('td', {}, 'Totaal meegeteld'), h('td', { class: 'hide-sm' }), h('td', { class: 'hide-sm' }), h('td', { class: 'num' }, eur(a.kpi.vastPm)), h('td', { class: 'num hide-sm' }, eur(a.kpi.vastPm * 12)), h('td')));
   barChart($('#ch-vast'), a.monthRows.map((r) => ({ label: r.month, v: r.vast })), COLORS().vast, 'Vaste lasten');
 }
 
@@ -595,10 +598,10 @@ function renderTx() {
   const shown = list.slice(0, 800);
   $('#tb-tx').replaceChildren(...shown.map((t) => h('tr', {},
     h('td', { class: 'num' }, shortDate(t.date)),
-    h('td', {}, cleanName(t.name) || '(zonder naam)', t.desc ? h('span', { class: 'sm', title: t.desc }, t.desc) : null),
-    h('td', {}, catSelect(t.cat, t.auto, (v) => setOverride(t.key, v)), t.group !== CAT[t.cat].group ? h('span', { class: 'sm' }, GROUPS[t.group]) : null),
-    h('td', { class: 'num bij' }, t.amount > 0 ? eur(t.amount) : ''), h('td', { class: 'num' }, t.amount < 0 ? eur(-t.amount) : ''))),
-  list.length > shown.length ? h('tr', { class: 'muted' }, h('td', { colspan: 5 }, `En nog ${list.length - shown.length} transacties. Gebruik het zoekveld of de filters.`)) : null);
+    h('td', { class: 'namecell' }, cleanName(t.name) || '(zonder naam)', t.desc ? h('span', { class: 'sm', title: t.desc }, t.desc) : null, h('span', { class: 'sm show-sm' }, CAT[t.cat].label)),
+    h('td', { class: 'hide-sm' }, catSelect(t.cat, t.auto, (v) => setOverride(t.key, v)), t.group !== CAT[t.cat].group ? h('span', { class: 'sm' }, GROUPS[t.group]) : null),
+    h('td', { class: 'num ' + (t.amount > 0 ? 'bij' : '') }, (t.amount > 0 ? '+ ' : '− ') + eur(Math.abs(t.amount))))),
+  list.length > shown.length ? h('tr', { class: 'muted' }, h('td', { colspan: 4 }, `En nog ${list.length - shown.length} transacties. Gebruik het zoekveld of de filters.`)) : null);
 }
 $('#x-q').addEventListener('input', renderTx); $('#x-cat').addEventListener('change', renderTx); $('#x-month').addEventListener('change', renderTx);
 $('#x-export').addEventListener('click', () => {
@@ -607,7 +610,7 @@ $('#x-export').addEventListener('click', () => {
     ...a.tx.map((t) => [t.date, q(cleanName(t.name)), q(t.desc), t.counterIban || '', q(CAT[t.cat].label), q(GROUPS[t.group]), t.amount.toFixed(2).replace('.', ',')].join(';'))];
   const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
-  const link = h('a', { href: url, download: `kasboek-${a.period.van}-${a.period.tot}.csv` }); document.body.append(link); link.click(); link.remove();
+  const link = h('a', { href: url, download: `geldwijzer-${a.period.van}-${a.period.tot}.csv` }); document.body.append(link); link.click(); link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 });
 
@@ -671,3 +674,8 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => st
 // bewaarde gegevens terugzetten
 const saved = state.settings.keepTx ? store.get(LS.tx) : null;
 if (saved && saved.tx?.length) { state.files = saved.files; state.tx = saved.tx; state.meta = saved.meta; showResult(); }
+
+// offline gebruik: de app zelf wordt in de browser bewaard (nooit je gegevens)
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}

@@ -36,6 +36,7 @@ export const CATEGORIES = [
   { id: 'belasting', label: 'Belastingdienst', group: 'variabel', fixed: false, re: /\b(belastingdienst)\b/i },
   { id: 'overig', label: 'Overig', group: 'variabel', re: null },
   { id: 'overig_in', label: 'Overig inkomen', group: 'inkomen', re: null },
+  { id: 'eenmalig_in', label: 'Eenmalige ontvangsten', group: 'inkomen', re: null },
 ];
 export const CAT = Object.fromEntries(CATEGORIES.map((c) => [c.id, c]));
 
@@ -92,6 +93,8 @@ export function analyze(txIn, settings = {}, meta = {}) {
     if (!cat) {
       const internal = (t.counterIban && own.has(t.counterIban) && t.counterIban !== t.account && t.kind !== 'kosten') || (holders.has(key) && t.kind !== 'pin' && t.kind !== 'incasso');
       cat = internal ? 'intern' : ruleCategory(t);
+      // grote losse ontvangst in een uitgavencategorie (bijv. verkoop auto) is eenmalig inkomen, geen negatieve uitgave
+      if (t.amount >= threshold && !['inkomen', 'intern'].includes(CAT[cat].group)) cat = 'eenmalig_in';
     }
     return { ...t, key, cat, auto, group: CAT[cat].group, month: ym(t.date) };
   });
@@ -132,7 +135,9 @@ export function analyze(txIn, settings = {}, meta = {}) {
     const isFixedCat = c.group === 'vast' || c.group === 'intern';
     const gm = ms.length > 1 ? (monthsBetween(ms[0], ms[ms.length - 1]).length - 1) / (ms.length - 1) : 99;
     const monthlyLike = gm <= 1.4 && ms.filter((m) => statMonths.includes(m)).length / span >= 0.5;
-    const qualifies = ms.length >= 3 && perMonthCount <= 2.2 && (isFixedCat ? true : stable && c.fixed !== false && monthlyLike);
+    const pm = Object.values(perMonth); const pmMed = median(pm);
+    const stableMonthly = pm.filter((v) => Math.abs(v - pmMed) <= Math.max(0.25 * pmMed, 2)).length / pm.length >= 0.7;
+    const qualifies = ms.length >= 3 && perMonthCount <= 2.2 && (c.group === 'intern' ? stableMonthly && monthlyLike : isFixedCat ? true : stable && c.fixed !== false && monthlyLike);
     const qualifiesFixedCat = isFixedCat && c.group === 'vast' && ms.length >= 1; // ook eenmalige rekening van een vaste-lastenpost telt als vast
     if (!qualifies && !qualifiesFixedCat) continue;
     const last = list.reduce((a, t) => (t.date > a.date ? t : a), list[0]);
@@ -141,16 +146,24 @@ export function analyze(txIn, settings = {}, meta = {}) {
     const coverage = ms.filter((m) => statMonths.includes(m)).length / span;
     let freq, monthly;
     const gapMonths = ms.length > 1 ? (monthsBetween(ms[0], ms[ms.length - 1]).length - 1) / (ms.length - 1) : null;
-    if (coverage >= 0.6 && gapMonths != null && gapMonths <= 1.4) { freq = 'maandelijks'; monthly = perMonth[lastMonth]; }
+    // kijk naar de laatste 12 maanden: hoe vaak kwam de post voor, en wat was het laatste bedrag
+    const last12 = statMonths.slice(-12); const n12 = ms.filter((m) => last12.includes(m)).length; const win = last12.length;
+    const lastAmtM = perMonth[lastMonth];
+    if (n12 >= 3 && gapMonths != null && gapMonths <= 1.6) {
+      freq = n12 >= win - 1 ? 'maandelijks' : win >= 12 ? `${n12}× per jaar` : 'maandelijks';
+      monthly = win >= 12 && n12 < win - 1 ? (lastAmtM * n12) / 12 : lastAmtM;
+    }
     else if (gapMonths && gapMonths >= 2.5 && gapMonths <= 3.5) { freq = 'per kwartaal'; monthly = median(Object.values(perMonth)) / 3; }
     else if (gapMonths && gapMonths >= 10) { freq = 'per jaar'; monthly = median(Object.values(perMonth)) / 12; }
     else if (ms.length < 3) { freq = 'incidenteel'; monthly = amounts.reduce((s, a) => s + a, 0) / Math.max(12, span); }
-    else { freq = 'onregelmatig'; monthly = Object.values(perMonth).reduce((s, a) => s + a, 0) / span; }
+    else { freq = 'onregelmatig'; monthly = ms.filter((m) => last12.includes(m)).reduce((s, m) => s + perMonth[m], 0) / Math.max(1, win); }
     if (!qualifies) { freq = 'incidenteel'; monthly = amounts.reduce((s, a) => s + a, 0) / Math.max(12, span); }
+    const monthlyLikeFreq = freq === 'maandelijks' || /× per jaar$/.test(freq);
     const endM = ym(period.tot);
     const monthsSinceLast = monthsBetween(lastMonth, endM).length - 1;
     let status = 'actief';
-    if (freq === 'maandelijks' && monthsSinceLast >= 2) status = 'gestopt?';
+    if (monthlyLikeFreq && monthsSinceLast >= 3) status = 'gestopt?';
+    else if (freq === 'maandelijks' && monthsSinceLast >= 2) status = 'gestopt?';
     else if (freq === 'maandelijks' && monthsSinceLast === 1) status = 'laatste maand niet betaald';
     else if (freq === 'onregelmatig' && monthsSinceLast >= 3) status = 'gestopt?';
     if (freq === 'maandelijks' && ms[0] >= addMonths(endM, -1) ) status = 'nieuw';
@@ -214,7 +227,7 @@ export function analyze(txIn, settings = {}, meta = {}) {
     const perMonth = {}; list.forEach((t) => { perMonth[t.month] = (perMonth[t.month] || 0) + t.amount; });
     const ms = Object.keys(perMonth).filter((m) => statMonths.includes(m));
     if (ms.length < Math.max(3, Math.ceil(span * 0.6))) continue;
-    const vals = ms.map((m) => perMonth[m]); const med = median(vals);
+    const vals = ms.map((m) => perMonth[m]); const med = median(ms.slice(-6).map((m) => perMonth[m]));
     const peaks = ms.filter((m) => perMonth[m] > med * 1.4 && perMonth[m] - med > 250).map((m) => ({ month: m, extra: r2(perMonth[m] - med) }));
     const lows = ms.filter((m) => perMonth[m] < med * 0.6 && med > 250).map((m) => ({ month: m, amount: r2(perMonth[m]) }));
     const missing = med > 250 ? statMonths.filter((m) => !perMonth[m] && m > ms[0]) : [];
@@ -242,7 +255,8 @@ export function analyze(txIn, settings = {}, meta = {}) {
 
   // --- prognose ---
   const varMonths = monthRows.filter((r) => r.full || !fullMonths.length).map((r) => r.variabel);
-  const varBase = r2(median(varMonths)), varHigh = r2(mean(varMonths));
+  const q75 = (arr) => { const v = [...arr].sort((x, y) => x - y); if (!v.length) return 0; const i = (v.length - 1) * 0.75, lo = Math.floor(i); return v[lo] + (v[Math.min(lo + 1, v.length - 1)] - v[lo]) * (i - lo); };
+  const varBase = r2(median(varMonths)), varHigh = r2(Math.max(mean(varMonths), q75(varMonths)));
   const active = recurring.filter((r) => r.status !== 'gestopt?' && r.freq !== 'incidenteel' && (!r.sparen || r.freq === 'maandelijks'));
   const vastPm = r2(active.filter((r) => !r.sparen).reduce((s, r) => s + r.monthly, 0));
   const sparenPm = r2(active.filter((r) => r.sparen).reduce((s, r) => s + r.monthly, 0));

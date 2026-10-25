@@ -219,10 +219,11 @@ export function parseCSVFile(text, filename = '') {
 const AMT = /^\d{1,3}(\.\d{3})*,\d\d$/;
 const DM = /^\d\d-\d\d$/;
 
-export async function parseRabobankPDF(pdfjs, data) {
+export async function parseRabobankPDF(pdfjs, data, onProgress) {
   const doc = await pdfjs.getDocument({ data, isEvalSupported: false }).promise;
   const tx = []; let cur = null; const head = {};
   for (let p = 1; p <= doc.numPages; p++) {
+    if (onProgress && (p === 1 || p % 5 === 0)) { onProgress(p, doc.numPages); await new Promise((r) => setTimeout(r, 0)); }
     const page = await doc.getPage(p);
     const H = page.getViewport({ scale: 1 }).height;
     const items = (await page.getTextContent()).items
@@ -258,7 +259,7 @@ export async function parseRabobankPDF(pdfjs, data) {
       }
     }
   }
-  if (!tx.length) throw new Error('Geen transacties gevonden. Is dit een Rabobank-rekeningafschrift?');
+  if (!tx.length) throw new Error('Geen transacties gevonden. Alleen het Rabobank-rekeningafschrift kan als PDF; gebruik voor andere banken de CSV-export.');
   const account = (head.iban || '').replace(/\s/g, '');
   const out = tx.map((t) => {
     const vd = t.oms.map((o) => o.match(/Verwerkingsdatum:\s*(\d\d-\d\d-\d{4})/)).find(Boolean);

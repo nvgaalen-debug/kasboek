@@ -3,22 +3,31 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Kasboek</title>
+<title>Geldwijzer</title>
 <meta name="description" content="Zie waar je geld blijft: inkomsten, uitgaven, vaste lasten en een prognose op basis van je bankexport. Alles wordt op je eigen apparaat verwerkt.">
 <meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f2f5f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1412" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Geldwijzer">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <header class="bar">
   <div class="bar-in">
-    <a class="brand" href="./" aria-label="Kasboek, begin opnieuw">
-      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7 9h10M7 13h10M7 17h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <span>Kasboek</span>
+    <a class="brand" href="./" aria-label="Geldwijzer, begin opnieuw">
+      <img src="favicon.svg" width="26" height="26" alt="">
+      <span>Geldwijzer</span>
     </a>
-    <span class="local-badge" title="Je bestanden worden alleen in deze browser gelezen en nergens naartoe gestuurd.">Lokaal verwerkt</span>
+    <span class="local-badge" title="Je bestanden worden alleen in deze browser gelezen en nergens naartoe gestuurd.">Lokaal<span class="hide-xs"> verwerkt</span></span>
     <div class="bar-actions" id="bar-actions" hidden>
-      <button class="btn ghost" id="btn-add" type="button">Bestand toevoegen</button>
+      <button class="btn ghost" id="btn-add" type="button"><span class="hide-xs">Bestand toevoegen</span><span class="show-xs" aria-hidden="true">+ Bestand</span></button>
       <button class="btn ghost" id="btn-settings" type="button">Instellingen</button>
     </div>
   </div>
@@ -40,7 +49,7 @@
       <label class="drop" id="drop" for="file">
         <input type="file" id="file" accept=".csv,.txt,.tab,.pdf" multiple>
         <svg viewBox="0 0 48 48" width="44" height="44" aria-hidden="true"><path d="M24 30V10m0 0-7 7m7-7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 30v6a3 3 0 0 0 3 3h22a3 3 0 0 0 3-3v-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
-        <span class="drop-title">Sleep je bankexport hierheen</span>
+        <span class="drop-title" id="drop-title">Sleep je bankexport hierheen</span>
         <span class="drop-sub">of klik om een bestand te kiezen. CSV, TXT of Rabobank-PDF. Meerdere rekeningen tegelijk mag.</span>
       </label>
       <p class="error" id="load-error" role="alert" hidden></p>
@@ -115,7 +124,7 @@
       <article class="card">
         <header><h2>Alle vaste lasten</h2><p>Herkend aan afschrijvingen die elke maand, elk kwartaal of jaarlijks terugkomen, of aan het soort ontvanger. Het maandbedrag is het laatst betaalde bedrag.</p></header>
         <div class="scroll">
-          <table class="ledger" id="tbl-vast"><thead><tr><th>Post</th><th>Categorie</th><th>Hoe vaak</th><th class="num">Per maand</th><th class="num">Per jaar</th><th>Status</th></tr></thead><tbody id="tb-vast"></tbody><tfoot id="tf-vast"></tfoot></table>
+          <table class="ledger" id="tbl-vast"><thead><tr><th>Post</th><th class="hide-sm">Categorie</th><th class="hide-sm">Hoe vaak</th><th class="num">Per maand</th><th class="num hide-sm">Per jaar</th><th>Status</th></tr></thead><tbody id="tb-vast"></tbody><tfoot id="tf-vast"></tfoot></table>
         </div>
       </article>
       <article class="card">
@@ -171,7 +180,7 @@
           <select id="x-month" aria-label="Maand"></select>
           <button class="btn ghost" id="x-export" type="button">Download als CSV</button>
         </div>
-        <div class="scroll tall"><table class="ledger" id="tbl-tx"><thead><tr><th>Datum</th><th>Naam en omschrijving</th><th>Categorie</th><th class="num">Bij</th><th class="num">Af</th></tr></thead><tbody id="tb-tx"></tbody></table></div>
+        <div class="scroll tall"><table class="ledger" id="tbl-tx"><thead><tr><th>Datum</th><th>Naam en omschrijving</th><th class="hide-sm">Categorie</th><th class="num">Bedrag</th></tr></thead><tbody id="tb-tx"></tbody></table></div>
       </article>
     </section>
   </section>
@@ -206,7 +215,7 @@
 <div class="tip" id="tip" hidden></div>
 <input type="file" id="file2" accept=".csv,.txt,.tab,.pdf" multiple hidden>
 <footer class="foot">
-  <p>Kasboek leest je bankexport alleen in deze browser. Er wordt niets verzonden of bewaard op een server. De prognose is een schatting op basis van je eigen cijfers en geen financieel advies.</p>
+  <p>Geldwijzer leest je bankexport alleen in deze browser. Er wordt niets verzonden of bewaard op een server. De prognose is een schatting op basis van je eigen cijfers en geen financieel advies.</p>
 </footer>
 <script type="module" src="app.js"></script>
 </body>

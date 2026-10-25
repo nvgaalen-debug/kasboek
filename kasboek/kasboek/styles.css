@@ -1,4 +1,4 @@
-/* Kasboek — een rustig grootboek: koel papier, groene inkt, gelinieerde tabellen. */
+/* Geldwijzer — een rustig grootboek: koel papier, groene inkt, gelinieerde tabellen. */
 :root {
   --paper: #f2f5f2;
   --surface: #ffffff;
@@ -239,3 +239,40 @@ div.bd-row.d0 .bd-l { padding-left: 1.1em; }
 .bd-row.muted { color: var(--muted); }
 .bd-note { margin-top: 4px; }
 @media (min-width: 900px) { .bd:has(.bd-sec + .bd-sec) { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); } }
+
+/* merk */
+.brand img { display: block; border-radius: 6px; }
+.show-sm { display: none !important; }
+@media (max-width: 560px) {
+  .bar-in { padding-block: 8px; gap: 8px; flex-wrap: nowrap; }
+  .brand { font-size: 18px; }
+  .bar-actions { gap: 6px; flex-wrap: nowrap; }
+  .bar-actions .btn { padding: 6px 10px; font-size: 14px; }
+  .hide-xs { display: none; }
+  .local-badge { white-space: nowrap; }
+  main { padding-block: 18px 32px; }
+  .summary { margin-bottom: 12px; }
+  .tiles { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .tile { padding: 12px; }
+  .tile .big { font-size: 22px; }
+  .tile .sub { font-size: 12px; }
+  .hide-sm { display: none !important; }
+  .show-sm { display: block !important; }
+  .ledger .sm { max-width: 60vw; }
+  .filters select { flex: 1 1 45%; }
+  .filters .btn { flex: 1 1 100%; }
+  .tabs button { padding: 10px 11px; }
+  .card header p { margin-bottom: 10px; }
+}
+
+.show-xs { display: none; }
+@media (max-width: 560px) {
+  .local-badge { display: none; }
+  .show-xs { display: inline; }
+  .bar-actions { margin-left: auto; }
+  #tbl-tx { table-layout: fixed; }
+  #tbl-tx th:nth-child(1) { width: 52px; }
+  #tbl-tx th:nth-child(4) { width: 98px; }
+  #tbl-tx .sm { max-width: 100%; }
+  #tbl-tx td { overflow: hidden; }
+}
