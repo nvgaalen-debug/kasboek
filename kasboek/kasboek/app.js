@@ -223,15 +223,46 @@ function renderOverzicht() {
   notes.replaceChildren(...(a.notes.length ? a.notes.map((x) => h('li', { class: x.kind }, x.text)) : [h('li', { class: 'empty' }, 'Niets bijzonders gevonden.')]));
   const C = COLORS();
   const cats = a.expenseCats.slice(0, 14), max = Math.max(...cats.map((c) => c.total), 1);
-  $('#ch-cats').replaceChildren(...cats.map((c) => {
+  $('#ch-cats').replaceChildren(...cats.flatMap((c) => {
     const g = Object.entries(c.groups).sort((x, y) => x[1] - y[1])[0]?.[0];
     const col = g === 'vast' ? C.vast : g === 'eenmalig' ? C.een : C.var;
-    return h('div', { class: 'hbar-row', onmousemove: (e) => showTip(e, c.label, [[col, 'Totaal', eur(c.total)], [null, 'Per maand', eur(c.perMonth)], [null, 'Transacties', String(c.count)]]), onmouseleave: hideTip },
-      h('span', { class: 'lab', title: c.label }, c.label),
-      h('span', { class: 'track' }, h('span', { class: 'bar', style: `width:${(c.total / max) * 78}%;background:${col}` }), h('span', { class: 'val' }, eur0(c.total))));
+    const open = state.openCat === c.cat;
+    const row = h('button', {
+      type: 'button', class: 'hbar-row' + (open ? ' open' : ''), 'aria-expanded': String(open), 'aria-controls': 'cd-' + c.cat,
+      onclick: () => { hideTip(); state.openCat = open ? null : c.cat; renderOverzicht(); },
+      onmousemove: (e) => { if (!open) showTip(e, c.label, [[col, 'Totaal', eur(c.total)], [null, 'Per maand', eur(c.perMonth)], [null, 'Transacties', String(c.count)], [null, '', 'Klik voor details']]); }, onmouseleave: hideTip,
+    },
+    h('span', { class: 'lab', title: c.label }, c.label),
+    h('span', { class: 'track' }, h('span', { class: 'bar', style: `width:${(c.total / max) * 72}%;background:${col}` }), h('span', { class: 'val' }, eur0(c.total)), h('span', { class: 'chev', 'aria-hidden': 'true' }, open ? '▾' : '▸')));
+    return open ? [row, catDetail(c, col)] : [row];
   }));
   $('#tb-income').replaceChildren(...a.incomeCats.map((c) => h('tr', {}, h('td', {}, c.label), h('td', { class: 'num' }, eur(c.total)), h('td', { class: 'num' }, eur(c.perMonth)))));
   $('#tb-eenmalig').replaceChildren(...(a.eenmalig.length ? a.eenmalig.slice(0, 12).map((t) => h('tr', {}, h('td', { class: 'num' }, shortDate(t.date)), h('td', {}, cleanName(t.name), h('span', { class: 'sm' }, CAT[t.cat].label)), h('td', { class: 'num' }, eur(-t.amount)))) : [h('tr', { class: 'muted' }, h('td', { colspan: 3 }, 'Geen grote eenmalige uitgaven.'))]));
+}
+
+// Uitsplitsing van één categorie naar de posten (ontvangers) waaruit hij bestaat.
+function catDetail(c, col) {
+  const ts = state.a.tx.filter((t) => t.cat === c.cat && t.group !== 'inkomen' && t.group !== 'intern');
+  const by = new Map();
+  for (const t of ts) {
+    const name = cleanName(t.name) || '(zonder naam)';
+    if (!by.has(t.key)) by.set(t.key, { name, n: 0, total: 0, last: t.date });
+    const r = by.get(t.key); r.n++; r.total -= t.amount; if (t.date > r.last) r.last = t.date;
+  }
+  const rows = [...by.values()].filter((r) => Math.abs(r.total) >= 0.005).sort((a, b) => b.total - a.total);
+  const top = rows.slice(0, 12), rest = rows.slice(12);
+  const max = Math.max(...top.map((r) => r.total), 1);
+  return h('div', { class: 'hbar-detail', id: 'cd-' + c.cat },
+    h('table', { class: 'ledger compact' },
+      h('thead', {}, h('tr', {}, h('th', {}, 'Post'), h('th', { class: 'num' }, 'Aantal'), h('th', { class: 'num' }, 'Totaal'))),
+      h('tbody', {}, ...top.map((r) => h('tr', {},
+        h('td', {}, r.name, h('span', { class: 'mini', style: `width:${Math.max(2, (r.total / max) * 100)}%;background:${col}` })),
+        h('td', { class: 'num' }, String(r.n)),
+        h('td', { class: 'num' }, eur(r.total), h('span', { class: 'sm' }, c.total ? Math.round((r.total / c.total) * 100) + '%' : '')))),
+      rest.length ? h('tr', { class: 'muted' }, h('td', {}, `${rest.length} andere posten`), h('td', { class: 'num' }, String(rest.reduce((s, r) => s + r.n, 0))), h('td', { class: 'num' }, eur(rest.reduce((s, r) => s + r.total, 0)))) : null)),
+    h('div', { class: 'hbar-detail-actions' },
+      h('button', { type: 'button', class: 'btn link', onclick: () => { selectTab('tx'); $('#x-cat').value = c.cat; $('#x-month').value = ''; $('#x-q').value = ''; renderTx(); } }, 'Alle transacties bekijken'),
+      c.cat === 'overig' ? h('button', { type: 'button', class: 'btn link', onclick: () => { selectTab('cat'); $('#c-only').checked = true; renderCat(); } }, 'Deze posten indelen') : null));
 }
 
 function axisY(svg, y, W, m, max, fmt = eur0) {

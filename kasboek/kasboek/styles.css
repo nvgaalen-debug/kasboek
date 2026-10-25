@@ -195,3 +195,15 @@ dialog::backdrop { background: rgba(10, 20, 16, .4); }
 .form .check-row { display: flex; }
 .sample-banner { display: block; }
 #p-vast .scroll { max-height: none; }
+
+/* klikbare categoriebalken met uitsplitsing */
+button.hbar-row { width: 100%; background: none; border: 0; border-radius: 6px; padding: 4px 6px; margin: 0 -6px; width: calc(100% + 12px); cursor: pointer; font: inherit; color: inherit; text-align: inherit; }
+button.hbar-row:hover, button.hbar-row.open { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.hbar-row .chev { color: var(--muted); font-size: 11px; margin-left: auto; padding-left: 4px; }
+.ledger.compact .sm { text-align: right; }
+.hbar-detail { margin: 4px 0 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.ledger.compact { font-size: 13px; }
+.ledger.compact th { background: var(--paper); }
+.ledger.compact td { padding: 5px 6px; }
+.ledger .mini { display: block; height: 3px; border-radius: 2px; margin-top: 4px; opacity: .8; }
+.hbar-detail-actions { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 6px; }

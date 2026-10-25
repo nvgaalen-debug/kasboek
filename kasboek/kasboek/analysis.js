@@ -59,7 +59,7 @@ const addMonths = (k, n) => { let [y, m] = k.split('-').map(Number); m += n; whi
 const daysIn = (k) => { const [y, m] = k.split('-').map(Number); return new Date(Date.UTC(y, m, 0)).getUTCDate(); };
 
 function ruleCategory(t) {
-  const name = t.name || '', text = name + ' ' + (t.desc || '');
+  const name = cleanName(t.name || '').replace(/\d+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[-_]/g, ' '), text = name + ' ' + (t.desc || '');
   const credit = t.amount > 0;
   for (const c of CATEGORIES) {
     if (!c.re) continue;
