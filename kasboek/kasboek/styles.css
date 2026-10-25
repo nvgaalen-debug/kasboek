@@ -320,3 +320,12 @@ body {
 /* rustige tabbalk boven het patroon */
 .tabs { background: var(--paper); border-radius: 10px 10px 0 0; padding-inline: 4px; box-shadow: 0 -8px 0 var(--paper); }
 .summary { background: color-mix(in srgb, var(--paper) 70%, transparent); border-radius: 10px; }
+
+.prog-row { cursor: pointer; }
+.prog-row:hover td, .prog-row.open td { background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.prog-row .chev { color: var(--muted); font-size: 11px; }
+.ledger td.neg { color: var(--bad); }
+.prog-detail > td { background: var(--paper); padding: 10px 12px; }
+.prog-detail .bd { gap: 10px; }
+.prog-detail .bd-head { font-size: 14px; }
+.prog-row td:first-child { white-space: nowrap; }

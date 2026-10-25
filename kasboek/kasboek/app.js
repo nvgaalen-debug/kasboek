@@ -138,7 +138,7 @@ function finalizeData() {
       const pick = sameDay.reduce((a, t) => ((asc ? t.seq > a.seq : t.seq < a.seq) ? t : a), sameDay[0]);
       bal = pick.balance;
     }
-    const chk = pdfChecks.find((c) => c.eindsaldo != null && state.files.some((f) => f.check === c && f.accounts.includes(acc)));
+    const chk = pdfChecks.filter((c) => c.eindsaldo != null && state.files.some((f) => f.check === c && f.accounts.includes(acc))).sort((x, y) => (x.tot < y.tot ? 1 : -1))[0];
     if (chk) bal = chk.eindsaldo;
     if (bal != null) { endBalance += bal; known++; }
   }
@@ -476,9 +476,37 @@ function forecast() {
     const af = p.vast + p.sparen + p.variabel;
     const netto = bij - af, nettoRuim = netto - extraRuim;
     sb += netto; sr += nettoRuim;
-    rows.push({ month: f.month, bij, af, netto, nettoRuim, saldo: sb, saldoRuim: sr });
+    rows.push({ month: f.month, bij, af, netto, nettoRuim, saldo: sb, saldoRuim: sr, extra, vast: p.vast, sparen: p.sparen, variabel: p.variabel, inkomen: p.inkomen });
   });
   return { params: p, rows };
+}
+
+// opbouw van één prognosemaand
+function monthBuild(r, startSaldo) {
+  const a = state.a; const edited = !!state.fc;
+  const active = a.recurring.filter((x) => x.status !== 'gestopt?' && x.freq !== 'incidenteel');
+  const inc = edited ? [] : a.incomeStreams.map((x) => ({ label: cleanName(x.name), total: x.base }));
+  const vast = edited ? [] : active.filter((x) => !x.sparen).map((x) => ({ label: cleanName(x.name), total: x.monthly }));
+  const ids = new Set(active.filter((x) => x.sparen && x.freq === 'maandelijks').flatMap((x) => [...x.ids]));
+  const potM = new Map(); const st = a.tx.filter((t) => ids.has(t.id) && t.amount < 0);
+  const lm = st.length ? st[st.length - 1].month : null;
+  st.filter((t) => t.month === lm).forEach((t) => { const pt = potOf(t).pot; potM.set(pt, (potM.get(pt) || 0) - t.amount); });
+  const sparen = edited ? [] : [...potM].map(([label, total]) => ({ label, total }));
+  return breakdown([
+    { title: 'Bij', total: r.bij, sign: '+ ', rows: [
+      { label: 'Vast inkomen', total: r.inkomen, children: inc },
+      ...(r.extra ? [{ label: 'Vakantiegeld (zoals vorig jaar)', total: r.extra }] : []),
+    ] },
+    { title: 'Af', total: r.af, sign: '− ', rows: [
+      { label: 'Vaste lasten', total: r.vast, children: vast },
+      { label: 'Vast sparen (blijft van jou, gaat naar je spaarrekening)', total: r.sparen, children: sparen },
+      { label: 'Overige uitgaven in een normale maand', total: r.variabel },
+    ] },
+    { title: 'Saldo betaalrekening', total: Math.abs(r.saldo), sign: r.saldo < 0 ? '− ' : '', cls: r.saldo < 0 ? 'neg' : '', rows: [
+      { label: 'Begin van de maand', total: Math.abs(startSaldo), sign: startSaldo < 0 ? '− ' : '' },
+      { label: r.netto >= 0 ? 'Over deze maand' : 'Tekort deze maand', total: Math.abs(r.netto), sign: r.netto >= 0 ? '+ ' : '− ', cls: r.netto >= 0 ? 'pos' : 'neg' },
+    ] },
+  ], { note: edited ? 'Je hebt de aannames aangepast; daarom staan er geen losse posten bij.' : '' });
 }
 
 function renderPrognose() {
@@ -498,7 +526,16 @@ function renderPrognose() {
     ? 'Tot de laatste maand het werkelijke saldo van je geladen rekening(en), daarna de prognose in twee scenario\'s.'
     : 'Je export bevat geen saldo. Vul bij de aannames je huidige saldo in; de lijn laat zien hoe dat zich ontwikkelt.';
   saldoChart($('#ch-saldo'), a, R);
-  $('#tb-prog').replaceChildren(...R.map((r) => h('tr', {}, h('td', {}, monthLabel(r.month)), h('td', { class: 'num' }, eur0(r.bij)), h('td', { class: 'num' }, eur0(r.af)), h('td', { class: 'num ' + (r.netto >= 0 ? 'bij' : '') }, eur0(r.netto)), h('td', { class: 'num' }, eur0(r.saldo)))));
+  state.openProg = state.openProg || null;
+  const sg = (v) => (v < 0 ? '− ' : '') + eur0(Math.abs(v));
+  $('#tb-prog').replaceChildren(...R.flatMap((r, i) => {
+    const open = state.openProg === r.month;
+    const row = h('tr', { class: 'prog-row' + (open ? ' open' : ''), tabindex: '0', role: 'button', 'aria-expanded': String(open),
+      onclick: () => { state.openProg = open ? null : r.month; renderPrognose(); },
+      onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); state.openProg = open ? null : r.month; renderPrognose(); } } },
+    h('td', {}, h('span', { class: 'chev', 'aria-hidden': 'true' }, open ? '▾ ' : '▸ '), monthLabel(r.month)), h('td', { class: 'num' }, eur0(r.bij)), h('td', { class: 'num' }, eur0(r.af)), h('td', { class: 'num ' + (r.netto >= 0 ? 'bij' : 'neg') }, sg(r.netto)), h('td', { class: 'num' }, sg(r.saldo)));
+    return open ? [row, h('tr', { class: 'prog-detail' }, h('td', { colspan: 5 }, monthBuild(r, i === 0 ? p.start : R[i - 1].saldo)))] : [row];
+  }));
 }
 ['#f-inkomen', '#f-vast', '#f-sparen', '#f-var', '#f-start'].forEach((sel, i) => $(sel).addEventListener('input', (e) => {
   const v = Number(e.target.value); if (isNaN(v)) return;
