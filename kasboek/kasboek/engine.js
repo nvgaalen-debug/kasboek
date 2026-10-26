@@ -153,7 +153,7 @@ export function generateAlerts(a, settings, extra = {}) {
   if (extra.lowNext && extra.lowNext.low < (Number(settings.buffer) || 0)) {
     const L = extra.lowNext; const buf = Number(settings.buffer) || 0;
     add({ id: `low-${L.month}`, type: 'low', severity: L.low < 0 ? 'critical' : 'warning', title: L.low < 0 ? `Rood staan rond de ${L.day}e ${monthLabel(L.month, true, false)}` : `Onder je buffer rond de ${L.day}e ${monthLabel(L.month, true, false)}`,
-      message: `Je saldo zakt naar verwachting tot ${eur0(L.low)}, vlak voordat je salaris binnenkomt.${buf ? ` Je buffer is ${eur0(buf)}.` : ''}`, amount: L.low, calc: [['Saldo begin van de maand', r2(L.start)], ['Laagste punt (' + L.day + 'e)', r2(L.low)]] });
+      message: `Je saldo zakt naar verwachting tot ${eur0(L.low)}${L.day >= 28 ? ' aan het eind van de maand' : ', vlak voordat je salaris binnenkomt'}.${extra.overNext != null && extra.overNext < 0 ? ` De prognose rekent met ${eur0(-extra.overNext)} per maand tekort, dat stapelt zich op.` : ''}${buf ? ` Je buffer is ${eur0(buf)}.` : ''}`, amount: L.low, calc: [['Saldo begin ' + monthLabel(L.month, true, false), r2(L.start)], ...(extra.lowCalc || []), ['Laagste punt (' + L.day + 'e)', r2(L.low)]] });
   }
   // 5 + 6: vergelijking met vorige maand
   const cmp = comparePeriods(a);

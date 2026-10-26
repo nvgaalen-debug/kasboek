@@ -1068,7 +1068,9 @@ function alertsNow(fc) {
   const lows = lowForecast(fc); const buf = Number(st.buffer) || 0;
   const lowNext = lows.slice(0, 3).find((x) => x.low < buf) || null;
   const r0 = fc.rows[0];
-  return generateAlerts(a, st, { varPerMonth: fc.params.variabel, lowNext, overNext: r0 ? Math.round(r0.netto) : null,
+  const P = fc.params;
+  const lowCalc = [['Vast inkomen per maand', P.inkomen], ['Vaste lasten per maand', -P.vast], ['Automatisch sparen per maand', -P.sparen], ['Overige uitgaven per maand', -P.variabel]];
+  return generateAlerts(a, st, { varPerMonth: fc.params.variabel, lowNext, lowCalc, overNext: r0 ? Math.round(r0.netto) : null,
     overCalc: r0 ? [['Vast inkomen', r0.inkomen], ['Vaste lasten', -r0.vast], ['Automatisch sparen', -r0.sparen], ['Overige uitgaven (normale maand)', -r0.variabel], ['Over', r0.netto]] : [] });
 }
 const SEV = { critical: ['Let op', 'crit'], warning: ['Opgelet', 'warn'], info: ['Ter info', 'info'], good: ['Goed nieuws', 'good'] };
@@ -1086,6 +1088,7 @@ function renderInsights(fc) {
   };
   el.replaceChildren(
     h('header', { class: 'ins-head' }, h('h2', {}, 'Inzichten'), h('span', { class: 'meta' }, `Op basis van je gegevens t/m ${fmtDate(c.peil)}${c.complete ? '' : ` · nog ${c.rest} dagen in ${monthLabel(c.month, true, false)}`}`)),
+    a.history && a.history.short ? h('p', { class: 'ins-short' }, `Je export beslaat maar ${a.history.fullMonths} volledige ${a.history.fullMonths === 1 ? 'maand' : 'maanden'}. Daardoor zijn de verwachtingen nog onzeker. Laad minstens 3, liefst 6 tot 12 maanden, bijvoorbeeld door een tweede afschrift toe te voegen met + Bestand.`) : null,
     list.length ? h('ul', { class: 'ins-list' }, ...shown.map(item)) : h('p', { class: 'hint' }, 'Geen bijzonderheden. Je ligt op schema.'),
     h('div', { class: 'ins-foot' },
       list.length > 3 ? h('button', { type: 'button', class: 'btn link', onclick: () => { state.showAllAlerts = !state.showAllAlerts; renderInsights(); } }, state.showAllAlerts ? 'Toon minder' : `Toon alle ${list.length} inzichten`) : null,

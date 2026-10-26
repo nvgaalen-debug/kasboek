@@ -130,6 +130,8 @@ export function analyze(txIn, settings = {}, meta = {}) {
   });
   const statMonths = fullMonths.length ? fullMonths : months;
   const span = statMonths.length;
+  // weinig geschiedenis (minder dan 3 volle maanden): dan is 2 keer genoeg om iets als terugkerend te zien
+  const minM = fullMonths.length >= 3 ? 3 : 2;
 
   // --- terugkerende afschrijvingen: maak er vaste lasten van ---
   const byKey = new Map();
@@ -156,7 +158,7 @@ export function analyze(txIn, settings = {}, meta = {}) {
     const monthlyLike = gm <= 1.4 && ms.filter((m) => statMonths.includes(m)).length / span >= 0.5;
     const pm = Object.values(perMonth); const pmMed = median(pm);
     const stableMonthly = pm.filter((v) => Math.abs(v - pmMed) <= Math.max(0.25 * pmMed, 2)).length / pm.length >= 0.7;
-    const qualifies = ms.length >= 3 && perMonthCount <= 2.2 && (c.group === 'intern' ? stableMonthly && monthlyLike : isFixedCat ? true : stable && c.fixed !== false && monthlyLike);
+    const qualifies = ms.length >= minM && perMonthCount <= 2.2 && (c.group === 'intern' ? stableMonthly && monthlyLike : isFixedCat ? true : stable && c.fixed !== false && monthlyLike);
     const qualifiesFixedCat = isFixedCat && c.group === 'vast' && ms.length >= 1; // ook eenmalige rekening van een vaste-lastenpost telt als vast
     if (!qualifies && !qualifiesFixedCat) continue;
     const last = list.reduce((a, t) => (t.date > a.date ? t : a), list[0]);
@@ -166,15 +168,15 @@ export function analyze(txIn, settings = {}, meta = {}) {
     let freq, monthly;
     const gapMonths = ms.length > 1 ? (monthsBetween(ms[0], ms[ms.length - 1]).length - 1) / (ms.length - 1) : null;
     // kijk naar de laatste 12 maanden: hoe vaak kwam de post voor, en wat was het laatste bedrag
-    const last12 = statMonths.slice(-12); const n12 = ms.filter((m) => last12.includes(m)).length; const win = last12.length;
+    const last12 = (statMonths.length >= 3 ? statMonths : months).slice(-12); const n12 = ms.filter((m) => last12.includes(m)).length; const win = last12.length;
     const lastAmtM = perMonth[lastMonth];
-    if (n12 >= 3 && gapMonths != null && gapMonths <= 1.6) {
+    if (n12 >= minM && gapMonths != null && gapMonths <= 1.6) {
       freq = n12 >= win - 1 ? 'maandelijks' : win >= 12 ? `${n12}× per jaar` : 'maandelijks';
       monthly = win >= 12 && n12 < win - 1 ? (lastAmtM * n12) / 12 : lastAmtM;
     }
     else if (gapMonths && gapMonths >= 2.5 && gapMonths <= 3.5) { freq = 'per kwartaal'; monthly = median(Object.values(perMonth)) / 3; }
     else if (gapMonths && gapMonths >= 10) { freq = 'per jaar'; monthly = median(Object.values(perMonth)) / 12; }
-    else if (ms.length < 3) { freq = 'incidenteel'; monthly = amounts.reduce((s, a) => s + a, 0) / Math.max(12, span); }
+    else if (ms.length < minM) { freq = 'incidenteel'; monthly = amounts.reduce((s, a) => s + a, 0) / Math.max(12, span); }
     else { freq = 'onregelmatig'; monthly = ms.filter((m) => last12.includes(m)).reduce((s, m) => s + perMonth[m], 0) / Math.max(1, win); }
     if (!qualifies) { freq = 'incidenteel'; monthly = amounts.reduce((s, a) => s + a, 0) / Math.max(12, span); }
     const monthlyLikeFreq = freq === 'maandelijks' || /× per jaar$/.test(freq);
@@ -214,7 +216,7 @@ export function analyze(txIn, settings = {}, meta = {}) {
     const days = list.map((t) => Number(t.date.slice(8, 10))); const dMed = median(days);
     const sameDay = days.filter((d) => Math.abs(d - dMed) <= 3).length / days.length;
     const recent = lastFull.every((m) => months.includes(m));
-    if (months.length < 3 || perMonth > 1.2 || coverage < 0.85 || sameDay < 0.8 || !recent) continue;
+    if (months.length < minM || perMonth > 1.2 || coverage < 0.85 || sameDay < 0.8 || !recent) continue;
     const amt = -list[0].amount; const last = list[list.length - 1];
     recurring.push({
       key: 'S:' + k, name: potOf(last).pot, cat: 'intern', sparen: true, freq: 'maandelijks', auto: true, day: Math.round(dMed),
@@ -272,9 +274,9 @@ export function analyze(txIn, settings = {}, meta = {}) {
   const notes = [];
   for (const [k, list] of incByKey) {
     const perMonth = {}; list.forEach((t) => { perMonth[t.month] = (perMonth[t.month] || 0) + t.amount; });
-    const ms = Object.keys(perMonth).filter((m) => statMonths.includes(m));
-    if (ms.length < Math.max(3, Math.ceil(span * 0.6))) continue;
-    const vals = ms.map((m) => perMonth[m]); const med = median(ms.slice(-6).map((m) => perMonth[m]));
+    const ms = Object.keys(perMonth).sort();
+    if (ms.length < Math.max(minM, Math.ceil(span * 0.6))) continue;
+    const vals = ms.map((m) => perMonth[m]); const med = ms.length <= 2 ? perMonth[ms[ms.length - 1]] : median(ms.slice(-6).map((m) => perMonth[m]));
     const peaks = ms.filter((m) => perMonth[m] > med * 1.4 && perMonth[m] - med > 250).map((m) => ({ month: m, extra: r2(perMonth[m] - med) }));
     const lows = ms.filter((m) => perMonth[m] < med * 0.6 && med > 250).map((m) => ({ month: m, amount: r2(perMonth[m]) }));
     const missing = med > 250 ? statMonths.filter((m) => !perMonth[m] && m > ms[0]) : [];
@@ -326,6 +328,7 @@ export function analyze(txIn, settings = {}, meta = {}) {
   return {
     tx, period, months, fullMonths, monthRows, expenseCats, incomeCats, recurring: recurring.sort((a, b) => b.monthly - a.monthly),
     incomeStreams, notes, forecast, eenmalig, balance,
+    history: { fullMonths: fullMonths.length, months: months.length, short: fullMonths.length < 3 },
     kpi: { totIn, totOut, net: r2(totIn - totOut), regular, vastPm, sparenPm, varBase, varHigh, incomeBase, internNet, eenmaligTotal: r2(eenmaligTotal) },
   };
 }

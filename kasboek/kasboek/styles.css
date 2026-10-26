@@ -431,3 +431,4 @@ body {
   .bg-row .bg-prog { grid-column: 1 / -1; }
   .bg-controls { grid-template-columns: 1fr 120px; }
 }
+.ins-short { margin: 0 0 10px; padding: 8px 12px; border-radius: 8px; background: var(--warn-bg); color: var(--ink); font-size: 14px; }
