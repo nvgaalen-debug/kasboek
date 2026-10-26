@@ -127,10 +127,16 @@
     <section class="panel" id="p-vast" role="tabpanel" aria-labelledby="t-vast" hidden>
       <div class="tiles" id="tiles-vast"></div>
       <article class="card">
-        <header><h2>Alle vaste lasten</h2><p>Herkend aan afschrijvingen die elke maand, elk kwartaal of jaarlijks terugkomen, of aan het soort ontvanger. Het maandbedrag is het laatst betaalde bedrag.</p></header>
+        <header><h2>Alle vaste lasten</h2><p>Een post telt als vaste last als hij elke maand terugkomt, of elk kwartaal of jaar met steeds ongeveer hetzelfde bedrag. Losse rekeningen van gemeente, waterschap, energie, water of verzekering tellen ook mee. Het maandbedrag is het laatst betaalde bedrag. Hoort iets er niet bij? Klik op <em>Geen vaste last</em>.</p></header>
         <div class="scroll">
           <table class="ledger" id="tbl-vast"><thead><tr><th>Post</th><th class="hide-sm">Categorie</th><th class="hide-sm">Hoe vaak</th><th class="num">Per maand</th><th class="num hide-sm">Per jaar</th><th>Status</th></tr></thead><tbody id="tb-vast"></tbody><tfoot id="tf-vast"></tfoot></table>
         </div>
+        <p class="nf-list" id="nf-list"></p>
+      </article>
+      <article class="card" id="card-addfixed">
+        <header><h2>Vaste last toevoegen</h2><p>Mist er iets, zoals een gemeentebelasting in termijnen of een contributie die een paar keer per jaar wordt afgeschreven? Maak er een vaste last van. Geldwijzer rekent dan met het gemiddelde per maand over het afgelopen jaar; bij 8 termijnen van € 160 is dat ongeveer € 107 per maand.</p></header>
+        <div class="filters"><input id="af-q" type="search" placeholder="Zoek op naam, bijv. gemeente" aria-label="Zoek een post"></div>
+        <div class="scroll"><table class="ledger"><thead><tr><th>Post</th><th class="num">Bedrag</th><th></th></tr></thead><tbody id="tb-af"></tbody></table></div>
       </article>
       <article class="card">
         <header><h2>Vaste lasten per maand</h2><p>Wat er werkelijk aan vaste lasten is afgeschreven.</p></header>

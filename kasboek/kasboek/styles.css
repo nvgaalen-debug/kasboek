@@ -432,3 +432,7 @@ body {
   .bg-controls { grid-template-columns: 1fr 120px; }
 }
 .ins-short { margin: 0 0 10px; padding: 8px 12px; border-radius: 8px; background: var(--warn-bg); color: var(--ink); font-size: 14px; }
+.nf-btn { display: block; color: var(--muted); }
+.nf-list { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); margin: 10px 0 0; }
+.nf-list:empty { display: none; }
+.nf-pill .btn { padding: 0; }

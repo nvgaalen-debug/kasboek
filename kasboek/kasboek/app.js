@@ -439,9 +439,18 @@ function renderVast() {
       h('td', { class: 'hide-sm' }, r.freq),
       h('td', { class: 'num' }, counted ? eur(r.monthly) : '–'),
       h('td', { class: 'num hide-sm' }, counted ? eur(r.monthly * 12) : '–'),
-      h('td', {}, pill(r.freq === 'incidenteel' ? 'eenmalig betaald' : r.status), Math.abs(r.change) >= 0.08 ? h('span', { class: 'sm' }, `${r.change > 0 ? '+' : ''}${Math.round(r.change * 100)}% sinds begin`) : null));
+      h('td', {}, pill(r.freq === 'incidenteel' ? 'eenmalig betaald' : r.status), Math.abs(r.change) >= 0.08 ? h('span', { class: 'sm' }, `${r.change > 0 ? '+' : ''}${Math.round(r.change * 100)}% sinds begin`) : null,
+        r.forced ? h('span', { class: 'sm' }, 'door jou toegevoegd') : null,
+        h('button', { type: 'button', class: 'btn link sm-btn nf-btn', title: 'Telt dan als gewone uitgave, niet als vaste last', onclick: () => {
+          const st = state.settings;
+          if (r.forced) { delete st.forceFixed[r.key]; } else { st.notFixed = st.notFixed || {}; st.notFixed[r.key] = cleanName(r.name); }
+          saveSettings(); recompute();
+        } }, 'Geen vaste last')));
   }));
   $('#tf-vast').replaceChildren(h('tr', {}, h('td', {}, 'Totaal meegeteld'), h('td', { class: 'hide-sm' }), h('td', { class: 'hide-sm' }), h('td', { class: 'num' }, eur(a.kpi.vastPm)), h('td', { class: 'num hide-sm' }, eur(a.kpi.vastPm * 12)), h('td')));
+  renderAddFixed();
+  const nf = state.settings.notFixed || {};
+  $('#nf-list').replaceChildren(...(Object.keys(nf).length ? [h('span', {}, 'Door jou uitgesloten: '), ...Object.entries(nf).map(([k, name]) => h('span', { class: 'pill nf-pill' }, typeof name === 'string' ? name : k, ' ', h('button', { type: 'button', class: 'btn link sm-btn', 'aria-label': 'Terugzetten', onclick: () => { delete state.settings.notFixed[k]; saveSettings(); recompute(); } }, 'terugzetten')))] : []));
   barChart($('#ch-vast'), a.monthRows.map((r) => ({ label: r.month, v: r.vast })), COLORS().vast, 'Vaste lasten');
 }
 
@@ -1134,3 +1143,24 @@ $('#bg-clear').addEventListener('click', (e) => {
 });
 // voor later: dezelfde functies als "tools" voor een assistent
 window.geldwijzer = { context: () => context(state.a), calculateBudgetForecast: () => calculateBudgetForecast(state.a, state.settings), calculateAvailableToSpend: () => calculateAvailableToSpend(state.a, state.settings, forecast().params.variabel), calculateEndOfMonthBalance: () => calculateEndOfMonthBalance(state.a, forecast().params.variabel), getUpcomingExpenses: (d = 7) => getUpcomingExpenses(state.a, d), comparePeriods: () => comparePeriods(state.a), generateAlerts: () => alertsNow() };
+
+
+// ================= zelf een vaste last toevoegen =================
+function renderAddFixed() {
+  const a = state.a; const st = state.settings; st.forceFixed = st.forceFixed || {};
+  const inList = new Set(a.recurring.map((r) => r.key));
+  const q = ($('#af-q').value || '').trim().toLowerCase();
+  const by = new Map();
+  for (const t of a.tx) {
+    if (t.amount >= 0 || t.group === 'intern' || inList.has(t.key)) continue;
+    if (!by.has(t.key)) by.set(t.key, { key: t.key, name: cleanName(t.name) || '(zonder naam)', n: 0, total: 0, months: new Set(), last: t.date, cat: t.cat });
+    const r = by.get(t.key); r.n++; r.total -= t.amount; r.months.add(t.month); if (t.date > r.last) r.last = t.date;
+  }
+  const rows = [...by.values()].filter((r) => (q ? r.name.toLowerCase().includes(q) : r.months.size >= 2)).sort((x, y) => y.months.size - x.months.size || y.total - x.total).slice(0, q ? 40 : 12);
+  $('#tb-af').replaceChildren(...(rows.length ? rows.map((r) => h('tr', {},
+    h('td', {}, r.name, h('span', { class: 'sm' }, `${CAT[r.cat].label} · ${r.n}× in ${r.months.size} ${r.months.size === 1 ? 'maand' : 'maanden'} · laatst ${fmtDate(r.last)}`)),
+    h('td', { class: 'num' }, eur(r.total / Math.max(1, Math.min(12, a.months.length))), h('span', { class: 'sm' }, 'gem. per maand')),
+    h('td', {}, h('button', { type: 'button', class: 'btn ghost sm-btn', onclick: () => { st.forceFixed[r.key] = r.name; if (st.notFixed) delete st.notFixed[r.key]; saveSettings(); recompute(); } }, 'Maak vaste last')))) :
+    [h('tr', { class: 'muted' }, h('td', { colspan: 3 }, q ? 'Niets gevonden.' : 'Geen terugkerende posten gevonden die nog niet bij je vaste lasten staan. Zoek op naam.'))]));
+}
+$('#af-q').addEventListener('input', renderAddFixed);

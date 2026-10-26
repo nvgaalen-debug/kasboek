@@ -13,12 +13,12 @@ export const CATEGORIES = [
   { id: 'energie', label: 'Energie', group: 'vast', re: /\b(eneco services|eneco b\.?v|vattenfall|nuon|essent|greenchoice|budget energie|energiedirect|vandebron|engie|oxxio|pure energie|frank energie|tibber|zonneplan|anwb energie|delta energie|innova|mega energie|liander|stedin|enexis|westland infra|coteq|rendo)\b/i },
   { id: 'water', label: 'Water', group: 'vast', re: /\b(vitens|evides|waternet|brabant water|pwn|dunea|oasen|wml|waterbedrijf groningen|wmd|watermaatschappij)\b/i },
   { id: 'gemeente', label: 'Gemeente & waterschap', group: 'vast', re: /\b(gemeente(lijke)? belasting|gemeente [a-z]|waterschap|hoogheemraadschap|belastingsamenwerking|bsgw|gbt|bghu|cocensus|svhw|rbg|bsr\b|hhnk|wbd|noord-holland noord|belastingen gemeente|regionale belasting|gemeentebelasting)/i },
-  { id: 'zorg', label: 'Zorgverzekering', group: 'vast', re: /\b(zilveren kruis|\bcz\b|cz groep|vgz|menzis|dsw|zorg en zekerheid|onvz|asr ikz|ikz zorg|ditzo zorg|fbto zorg|infomedics|achmea zorg|salland|zorgverzekering|eno zorg|stad holland|unive zorg|de friesland|interpolis zorg|anderzorg|caresq|just zorg|zekur)\b/i },
+  { id: 'zorg', label: 'Zorgverzekering', group: 'vast', re: /\b(zilveren kruis|\bcz\b|cz groep|vgz|menzis|dsw|zorg en zekerheid|onvz|asr ikz|ikz zorg|ditzo zorg|fbto zorg|achmea zorg|salland|zorgverzekering|eno zorg|stad holland|unive zorg|de friesland|interpolis zorg|anderzorg|caresq|just zorg|zekur)\b/i },
   { id: 'verzekering', label: 'Verzekeringen', group: 'vast', re: /\b(interpolis|centraal beheer|fbto|ohra|nationale.?nederlanden|nn schade|unive|ditzo|allianz|asr\b|a\.s\.r|aegon|ansvar|anwb verzekering|inshared|promovendum|reaal|klaverblad|dela|monuta|yarden|verzekering)/i },
   { id: 'telecom', label: 'Internet & telefoon', group: 'vast', re: /\b(ziggo|kpn|t-mobile|odido|vodafone|youfone|simpel|lebara|\bben\b|tele2|hollandsnieuwe|delta fiber|caiway|budget mobiel|lycamobile|vidaphone|50plusmobiel|robin mobile|freedom internet|online\.nl|glasvezel)\b/i },
   { id: 'abonnement', label: 'Abonnementen & loterij', group: 'vast', re: /\b(netflix|spotify|disney|videoland|hbo|max\.com|apple\.com|icloud|google|youtube|amazon prime|dpg media|mediahuis|ndc|telegraaf|volkskrant|nrc|trouw|parool|gelderlander|postcode ?loterij|staatsloterij|vriendenloterij|bankgiro ?loterij|basic-fit|anytime fitness|fit for free|sportcity|trainmore|sportschool|audible|storytel|kobo|patreon|chatgpt|openai|microsoft|adobe|dropbox|nintendo|playstation|xbox)\b/i },
   { id: 'kinderopvang', label: 'Kinderopvang & school', group: 'vast', re: /\b(kinderopvang|kinderdagverblijf|kdv|bso|partou|smallsteps|kids first|kinderrijk|humankind|duo\b|school|ouderbijdrage)\b/i },
-  { id: 'bank', label: 'Bankkosten', group: 'vast', re: /\b(totaalpakket|betaalpakket|kosten betaalrekening|rabo .*pakket|basispakket|ing kosten|abn amro kosten|kosten gebruik|rekeningkosten|bunq b\.?v)\b/i },
+  { id: 'bank', label: 'Bankkosten', group: 'vast', re: /\b(totaalpakket|betaalpakket|rabo comfort|rabo basis|rabo direct|kosten betaalrekening|rabo .*pakket|basispakket|ing kosten|abn amro kosten|kosten gebruik|rekeningkosten|bunq b\.?v)\b/i },
   { id: 'creditcard', label: 'Creditcard', group: 'variabel', fixed: false, re: /\b(creditcard|kaartnummer|icscards|international card services|american express|amex|rabo card|creditcar)/i },
   { id: 'contant', label: 'Contant geld', group: 'variabel', fixed: false, re: /\b(geldmaat|geldautomaat|\bgea\b|opname|atm)\b/i },
   { id: 'boodschappen', label: 'Boodschappen', group: 'variabel', fixed: false, re: /\b(albert heijn|\bah\b|ah to go|jumbo|lidl|aldi|plus\b|dirk|dekamarkt|hoogvliet|coop|spar\b|vomar|poiesz|picnic|crisp|ekoplaza|kaufland|marqt|deen|nettorama|boni|jan linders|mcd supermarkt|vandervalk|bakker|bakkerij|slager|slagerij|groenteman|groente|kaas|poelier|visboer|delicatess|toko|amazing oriental|edeka|rewe|carrefour|delhaize|colruyt|intermarche|leclerc)/i },
@@ -27,7 +27,7 @@ export const CATEGORIES = [
   { id: 'huis', label: 'Huis, tuin & klussen', group: 'variabel', fixed: false, re: /\b(gamma|praxis|karwei|hornbach|intratuin|groenrijk|ikea|action\b|jysk|leen bakker|kwantum|blokker|hema|xenos|welkoop|tuincentrum|bauhaus|hubo|formido|fonq|flinders|beddenreus|swiss sense|gall|kruidvat huis|hoveniers?|loodgieter|schilder|aannemer|installatie)/i },
   { id: 'online', label: 'Online winkelen', group: 'variabel', fixed: false, re: /\b(bol\.?com|amazon|zalando|coolblue|wehkamp|aliexpress|temu|shein|marktplaats|klarna|riverty|afterpay|paypal|mediamarkt|otto|vinted|lidl\.nl)/i },
   { id: 'kleding', label: 'Kleding & verzorging', group: 'variabel', fixed: false, re: /\b(h&m|h & m|zara|primark|c&a|we fashion|only\b|jack ?& ?jones|kruidvat|etos|da drogist|trekpleister|douglas|ici paris|rituals|kapper|kapsalon|hair|barber|nike|adidas|decathlon|intersport|hunkemoller|hunkemöller|bijenkorf|zeeman|wibra|scapino|van haren|bristol|schoenen|nagelstudio|schoonheid)/i },
-  { id: 'gezondheid', label: 'Gezondheid', group: 'variabel', fixed: false, re: /\b(apotheek|tandarts|fysio|fysiotherap|huisarts|ziekenhuis|optiek|specsavers|pearle|hans anders|mondzorg|dierenarts|psycholoog)\b/i },
+  { id: 'gezondheid', label: 'Gezondheid', group: 'variabel', fixed: false, re: /\b(infomedics|cbe|zorgdomein|apotheek|tandarts|fysio|fysiotherap|huisarts|ziekenhuis|optiek|specsavers|pearle|hans anders|mondzorg|dierenarts|psycholoog)\b/i },
   { id: 'vrijetijd', label: 'Vrije tijd & uitjes', group: 'variabel', fixed: false, re: /\b(bioscoop|path[eé]|vue\b|kinepolis|museum|dierentuin|efteling|apenheul|blijdorp|artis|sauna|thermen|theater|concert|ticketmaster|eventim|zwembad|sportfondsen|bowling|escape|pretpark|attractie|openlucht|speeltuin|boekhandel|bruna|ako\b|primera|intertoys|bart smit|top1toys|lego)/i },
   { id: 'reizen', label: 'Reizen & vakantie', group: 'variabel', fixed: false, re: /\b(booking\.com|airbnb|klm|transavia|ryanair|easyjet|vueling|lufthansa|tui\b|corendon|sunweb|d-reizen|camping|hotel|hostel|vakantiepark|center parcs|landal|roompot|flughafen|airport|schiphol|expedia)/i },
   { id: 'goededoelen', label: 'Goede doelen', group: 'variabel', fixed: false, re: /\b(kwf|unicef|rode kruis|greenpeace|wnf|amnesty|artsen zonder grenzen|hartstichting|alzheimer|clubactie|collecte|giro555|stichting .*fonds|natuurmonumenten)\b/i },
@@ -100,6 +100,8 @@ export function analyze(txIn, settings = {}, meta = {}) {
     if (sameBank && /(^|\s)(naar|van):\s*\S/i.test(t.desc || '') && t.name && t.kind !== 'pin' && t.kind !== 'incasso') holders.add(nameKey(t.name));
   }
   const overrides = settings.overrides || {};
+  const notFixed = settings.notFixed || {};
+  const forceFixed = settings.forceFixed || {};
   const txOv = settings.txOverrides || {};
   const threshold = settings.eenmaligThreshold ?? 750;
 
@@ -160,7 +162,9 @@ export function analyze(txIn, settings = {}, meta = {}) {
     const stableMonthly = pm.filter((v) => Math.abs(v - pmMed) <= Math.max(0.25 * pmMed, 2)).length / pm.length >= 0.7;
     const qualifies = ms.length >= minM && perMonthCount <= 2.2 && (c.group === 'intern' ? stableMonthly && monthlyLike : isFixedCat ? true : stable && c.fixed !== false && monthlyLike);
     const qualifiesFixedCat = isFixedCat && c.group === 'vast' && ms.length >= 1; // ook eenmalige rekening van een vaste-lastenpost telt als vast
-    if (!qualifies && !qualifiesFixedCat) continue;
+    const forced = !!forceFixed[k]; // door de gebruiker als vaste last aangewezen
+    if (!forced && !qualifies && !qualifiesFixedCat) continue;
+    if (notFixed[k]) continue; // door de gebruiker uitgesloten
     const last = list.reduce((a, t) => (t.date > a.date ? t : a), list[0]);
     const first = list.reduce((a, t) => (t.date < a.date ? t : a), list[0]);
     const lastMonth = ym(last.date);
@@ -178,7 +182,18 @@ export function analyze(txIn, settings = {}, meta = {}) {
     else if (gapMonths && gapMonths >= 10) { freq = 'per jaar'; monthly = median(Object.values(perMonth)) / 12; }
     else if (ms.length < minM) { freq = 'incidenteel'; monthly = amounts.reduce((s, a) => s + a, 0) / Math.max(12, span); }
     else { freq = 'onregelmatig'; monthly = ms.filter((m) => last12.includes(m)).reduce((s, m) => s + perMonth[m], 0) / Math.max(1, win); }
-    if (!qualifies) { freq = 'incidenteel'; monthly = amounts.reduce((s, a) => s + a, 0) / Math.max(12, span); }
+    if (!qualifies && !forced) { freq = 'incidenteel'; monthly = amounts.reduce((s, a) => s + a, 0) / Math.max(12, span); }
+    if (forced) {
+      // zelf aangewezen: gemiddelde per maand over de laatste 12 maanden (of minder als je export korter is)
+      const win2 = Math.min(12, months.length); const recent = months.slice(-win2);
+      const nIn = ms.filter((m) => recent.includes(m)).length;
+      const sum = ms.filter((m) => recent.includes(m)).reduce((x, m) => x + perMonth[m], 0);
+      if (nIn >= win2 - 1 && win2 > 1) { freq = 'maandelijks'; monthly = perMonth[lastMonth]; }
+      else { freq = win2 >= 12 ? `${nIn}× per jaar` : `${nIn}× in ${win2} mnd`; monthly = sum / Math.max(1, win2); }
+    }
+    // niet-maandelijkse posten tellen alleen als vaste last als het bedrag steeds ongeveer gelijk is
+    if (!forced && ['onregelmatig', 'per kwartaal', 'per jaar'].includes(freq) && !stable) continue;
+    if (!forced && freq === 'incidenteel' && !['gemeente', 'energie', 'water', 'verzekering'].includes(cat)) continue;
     const monthlyLikeFreq = freq === 'maandelijks' || /× per jaar$/.test(freq);
     const endM = ym(period.tot);
     const monthsSinceLast = monthsBetween(lastMonth, endM).length - 1;
@@ -195,7 +210,7 @@ export function analyze(txIn, settings = {}, meta = {}) {
       day: Math.round(median(list.map((t) => Number(t.date.slice(8, 10))))),
       key: k, name: last.name, cat: list.some((t) => t.group === 'intern') ? 'intern' : cat, sparen: c.group === 'intern' || k.startsWith('I:'),
       freq, monthly: r2(monthly), last: r2(lastAmt), lastDate: last.date, firstDate: first.date, months: ms.length, total: r2(amounts.reduce((s, a) => s + a, 0)),
-      status, change, ids: new Set(list.map((t) => t.id)),
+      status, change, ids: new Set(list.map((t) => t.id)), forced,
     });
   }
   // --- vast sparen: alleen automatische, maandelijkse overboekingen met een vast bedrag ---
@@ -229,6 +244,9 @@ export function analyze(txIn, settings = {}, meta = {}) {
   recurring.filter((r) => !r.sparen && r.freq !== 'incidenteel').forEach((r) => r.ids.forEach((id) => recurringIds.add(id)));
   for (const t of tx) {
     if (t.group === 'variabel' && recurringIds.has(t.id)) t.group = 'vast';
+    // een post uit een vaste-lastencategorie die niet regelmatig terugkomt, is geen vaste last
+    // (uitzondering: losse jaarrekeningen van gemeente, waterschap, energie en water)
+    else if (t.group === 'vast' && t.amount < 0 && !recurringIds.has(t.id) && (notFixed[t.key] || !['gemeente', 'energie', 'water', 'verzekering'].includes(t.cat))) t.group = 'variabel';
   }
   // --- eenmalig: grote losse afschrijvingen ---
   for (const t of tx) {
