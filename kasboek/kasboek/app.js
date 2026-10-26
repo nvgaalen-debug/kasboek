@@ -1,6 +1,7 @@
 import { parseCSVFile, parseRabobankPDF, decodeText } from './parsers.js';
 import { analyze, CATEGORIES, CAT, GROUPS, eur, eur0, monthLabel, nameKey, cleanName, potOf } from './analysis.js';
 import { sampleData } from './sample.js';
+import { context, calculateBudgetForecast, calculateAvailableToSpend, calculateEndOfMonthBalance, getUpcomingExpenses, comparePeriods, generateAlerts } from './engine.js';
 
 // ---------- opslag (optioneel, alleen in deze browser) ----------
 const LS = { settings: 'kasboek.settings.v1', tx: 'kasboek.tx.v1' };
@@ -9,7 +10,7 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
   del(k) { try { localStorage.removeItem(k); } catch { /* geen opslag */ } },
 };
-const defaultSettings = () => ({ holders: [], ownIbans: [], overrides: {}, txOverrides: {}, eenmaligThreshold: 750, keepRules: true, keepTx: false, projects: [], txProject: {} });
+const defaultSettings = () => ({ holders: [], ownIbans: [], overrides: {}, txOverrides: {}, eenmaligThreshold: 750, keepRules: true, keepTx: false, projects: [], txProject: {}, budgets: {}, buffer: 0, dismissed: {} });
 
 const state = { settings: { ...defaultSettings(), ...(store.get(LS.settings) || {}) }, files: [], tx: [], meta: {}, sample: false, a: null, fc: null, tab: 'overzicht' };
 
@@ -173,7 +174,7 @@ function renderAll() {
 
 function renderTab(tab) {
   if (!state.a) return;
-  ({ overzicht: renderOverzicht, vast: renderVast, prognose: renderPrognose, sparen: renderSparen, proj: renderProj, cmp: renderCmp, cat: renderCat, tx: renderTx })[tab]();
+  ({ overzicht: renderOverzicht, vast: renderVast, prognose: renderPrognose, sparen: renderSparen, proj: renderProj, cmp: renderCmp, budget: renderBudget, cat: renderCat, tx: renderTx })[tab]();
 }
 
 function selectTab(tab, push = true) {
@@ -315,9 +316,8 @@ function renderOverzicht() {
   renderTileDetail();
   monthChart($('#ch-months'), a.monthRows);
   const notes = $('#notes');
-  const lows = lowForecast(fc).filter((x) => x.low < 0);
-  const extraNotes = lows.length ? [{ kind: 'warn', text: `Je saldo dreigt ${lows.length === 1 ? 'in ' + monthLabel(lows[0].month, true) : lows.length + ' maanden in het komende jaar'} onder nul te komen, rond de ${lows[0].day}e (laagste punt ${eur0(Math.min(...lows.map((x) => x.low)))}). Zie Prognose.` }] : [];
-  const allNotes = [...extraNotes, ...a.notes];
+  renderInsights(fc);
+  const allNotes = [...a.notes];
   notes.replaceChildren(...(allNotes.length ? allNotes.map((x) => h('li', { class: x.kind }, x.text)) : [h('li', { class: 'empty' }, 'Niets bijzonders gevonden.')]));
   const C = COLORS();
   const cats = a.expenseCats.slice(0, 14), max = Math.max(...cats.map((c) => c.total), 1);
@@ -483,8 +483,10 @@ function varStats() {
   return { cap, base: Math.round(med * 100) / 100, high: Math.round(Math.max(mean, q75) * 100) / 100, excluded: excluded.sort((x, y) => x.amount - y.amount), months: months.length };
 }
 function defaults() {
-  const a = state.a; const v = varStats();
-  return { inkomen: a.kpi.incomeBase, vast: a.kpi.vastPm, sparen: a.kpi.sparenPm, variabel: v.base, ruim: v.high, start: a.balance ?? 0, vakantiegeld: true };
+  const a = state.a; const v = varStats(); const c = context(a);
+  // loopt de maand nog, dan begint de prognose bij het verwachte saldo aan het eind van deze maand
+  const eom = !c.complete && a.balance != null ? calculateEndOfMonthBalance(a, v.base) : null;
+  return { inkomen: a.kpi.incomeBase, vast: a.kpi.vastPm, sparen: a.kpi.sparenPm, variabel: v.base, ruim: v.high, start: eom ? eom.balance : (a.balance ?? 0), vakantiegeld: true };
 }
 function forecast() {
   const a = state.a; const p = { ...defaults(), ...(state.fc || {}) };
@@ -558,6 +560,7 @@ function renderPrognose() {
   if (eenm.length) parts.push(block(`Grote eenmalige uitgaven (vanaf ${eur0(th)}), tellen nooit mee`, eenm));
   capInfo.hidden = !parts.length;
   capInfo.replaceChildren(...parts);
+  { const c = context(a); const lab = document.querySelector('label[for=f-start]'); lab.textContent = c.complete ? 'Saldo nu' : `Verwacht saldo eind ${monthLabel(c.month, true, false)}`; }
   $('#saldo-note').textContent = a.balance != null
     ? 'Tot de laatste maand het werkelijke saldo van je geladen rekening(en), daarna de prognose in twee scenario\'s.'
     : 'Je export bevat geen saldo. Vul bij de aannames je huidige saldo in; de lijn laat zien hoe dat zich ontwikkelt.';
@@ -1057,3 +1060,74 @@ function renderCmp() {
   $('#cmp-in').replaceChildren(...table((t) => t.group === 'inkomen', 1, true));
 }
 document.querySelectorAll('input[name=cmp-mode]').forEach((r) => r.addEventListener('change', renderCmp));
+
+
+// ================= inzichten (Alert Engine op het dashboard) =================
+function alertsNow(fc) {
+  const a = state.a; fc = fc || forecast(); const st = state.settings; st.dismissed = st.dismissed || {};
+  const lows = lowForecast(fc); const buf = Number(st.buffer) || 0;
+  const lowNext = lows.slice(0, 3).find((x) => x.low < buf) || null;
+  const r0 = fc.rows[0];
+  return generateAlerts(a, st, { varPerMonth: fc.params.variabel, lowNext, overNext: r0 ? Math.round(r0.netto) : null,
+    overCalc: r0 ? [['Vast inkomen', r0.inkomen], ['Vaste lasten', -r0.vast], ['Automatisch sparen', -r0.sparen], ['Overige uitgaven (normale maand)', -r0.variabel], ['Over', r0.netto]] : [] });
+}
+const SEV = { critical: ['Let op', 'crit'], warning: ['Opgelet', 'warn'], info: ['Ter info', 'info'], good: ['Goed nieuws', 'good'] };
+function renderInsights(fc) {
+  const el = $('#insights'); const a = state.a; const c = context(a);
+  const list = alertsNow(fc); state.showAllAlerts = state.showAllAlerts || false;
+  const shown = state.showAllAlerts ? list : list.slice(0, 3);
+  const nDismissed = Object.keys(state.settings.dismissed || {}).length;
+  const item = (x) => {
+    const calc = h('div', { class: 'ins-calc', hidden: true }, h('table', {}, h('tbody', {}, ...(x.calc || []).map(([l, v]) => h('tr', {}, h('td', {}, l), h('td', { class: 'num' }, typeof v === 'number' ? (v < 0 ? '− ' : '') + eur(Math.abs(v)) : v))))));
+    const btnCalc = h('button', { type: 'button', class: 'btn link', onclick: (e) => { calc.hidden = !calc.hidden; e.currentTarget.textContent = calc.hidden ? 'Bekijk berekening' : 'Verberg berekening'; } }, 'Bekijk berekening');
+    const goto = x.type === 'budget' ? h('button', { type: 'button', class: 'btn link', onclick: () => selectTab('budget') }, 'Naar budgetten') : (x.type === 'low' || x.type === 'positive') ? h('button', { type: 'button', class: 'btn link', onclick: () => selectTab('prognose') }, 'Naar prognose') : null;
+    const hide = h('button', { type: 'button', class: 'btn link muted', onclick: () => { state.settings.dismissed[x.id] = Date.now(); saveSettings(); renderInsights(); } }, 'Verberg');
+    return h('li', { class: 'ins ' + SEV[x.severity][1] }, h('span', { class: 'ins-tag' }, SEV[x.severity][0]), h('strong', {}, x.title), h('p', {}, x.message), h('div', { class: 'ins-actions' }, x.calc && x.calc.length ? btnCalc : null, goto, hide), calc);
+  };
+  el.replaceChildren(
+    h('header', { class: 'ins-head' }, h('h2', {}, 'Inzichten'), h('span', { class: 'meta' }, `Op basis van je gegevens t/m ${fmtDate(c.peil)}${c.complete ? '' : ` · nog ${c.rest} dagen in ${monthLabel(c.month, true, false)}`}`)),
+    list.length ? h('ul', { class: 'ins-list' }, ...shown.map(item)) : h('p', { class: 'hint' }, 'Geen bijzonderheden. Je ligt op schema.'),
+    h('div', { class: 'ins-foot' },
+      list.length > 3 ? h('button', { type: 'button', class: 'btn link', onclick: () => { state.showAllAlerts = !state.showAllAlerts; renderInsights(); } }, state.showAllAlerts ? 'Toon minder' : `Toon alle ${list.length} inzichten`) : null,
+      nDismissed ? h('button', { type: 'button', class: 'btn link muted', onclick: () => { state.settings.dismissed = {}; saveSettings(); renderInsights(); } }, `${nDismissed} verborgen ${nDismissed === 1 ? 'melding' : 'meldingen'} terugzetten`) : null));
+}
+
+// ================= budgetten =================
+function renderBudget() {
+  const a = state.a; const st = state.settings; st.budgets = st.budgets || {}; const c = context(a);
+  $('#bg-intro').textContent = c.complete
+    ? `Je gegevens lopen t/m ${fmtDate(c.peil)}, een volledige maand. Je ziet hoe ${monthLabel(c.month, true, false)} verliep ten opzichte van je budget. Laad een export halverwege de maand om bij te sturen terwijl de maand loopt.`
+    : `Je gegevens lopen t/m ${fmtDate(c.peil)}. Nog ${c.rest} ${c.rest === 1 ? 'dag' : 'dagen'} in ${monthLabel(c.month, true, false)}; de verwachting telt voor de rest van de maand je normale uitgaven mee.`;
+  const bi = $('#bg-buffer'); if (bi !== document.activeElement) bi.value = st.buffer || '';
+  const rows = calculateBudgetForecast(a, st).filter((r) => r.budget || r.typical >= 5 || r.spent >= 5);
+  const pillCls = { over: 'crit', 'bijna op': 'crit', 'loopt voor': 'warn', 'op schema': 'good', 'geen budget': '' };
+  const head = h('div', { class: 'bg-row bg-head' }, h('span', {}, 'Categorie'), h('span', { class: 'num' }, 'Normaal p/m'), h('span', {}, 'Budget'), h('span', {}, monthLabel(c.month, true, false)));
+  $('#bg-table').replaceChildren(head, ...rows.map((r) => {
+    const inp = h('input', { type: 'number', min: '0', step: '10', inputmode: 'decimal', value: r.budget || '', placeholder: '–', 'aria-label': 'Budget ' + r.label, id: 'bg-' + r.cat });
+    inp.addEventListener('change', () => { const v = Number(inp.value); if (v > 0) st.budgets[r.cat] = v; else delete st.budgets[r.cat]; saveSettings(); renderBudget(); });
+    const scale = Math.max(r.budget || 0, r.forecast, r.spent, 1);
+    const bar = h('div', { class: 'bg-bar' },
+      h('i', { class: 'fc', style: `width:${Math.min(100, (r.forecast / scale) * 100)}%` }),
+      h('i', { class: 'sp ' + (pillCls[r.status] || ''), style: `width:${Math.min(100, (r.spent / scale) * 100)}%` }),
+      r.budget ? h('b', { class: 'bl', style: `left:${Math.min(100, (r.budget / scale) * 100)}%` }) : null);
+    const txt = r.budget ? `${eur0(r.spent)} van ${eur0(r.budget)}${c.complete ? '' : ` · verwacht ${eur0(r.forecast)}`}` : `${eur0(r.spent)}${c.complete ? '' : ` · verwacht ${eur0(r.forecast)}`}`;
+    return h('div', { class: 'bg-row' },
+      h('span', { class: 'bg-name' }, r.label),
+      h('span', { class: 'num' }, eur0(r.typical)),
+      h('span', {}, inp),
+      h('span', { class: 'bg-prog' }, bar, h('small', {}, txt, ' ', r.budget ? h('em', { class: 'pill ' + (pillCls[r.status] || '') }, r.status) : null)));
+  }));
+}
+$('#bg-buffer').addEventListener('change', (e) => { const v = Number(e.target.value); state.settings.buffer = v > 0 ? v : 0; saveSettings(); renderBudget(); });
+$('#bg-suggest').addEventListener('click', () => {
+  const st = state.settings; st.budgets = st.budgets || {};
+  calculateBudgetForecast(state.a, st).filter((r) => r.group === 'variabel' && r.typical >= 20 && !['contant', 'creditcard', 'tikkie', 'personen', 'belasting', 'overig'].includes(r.cat))
+    .forEach((r) => { if (!st.budgets[r.cat]) st.budgets[r.cat] = Math.max(10, Math.round(r.typical / 10) * 10); });
+  saveSettings(); renderBudget();
+});
+$('#bg-clear').addEventListener('click', (e) => {
+  const b = e.currentTarget; if (!b.dataset.sure) { b.dataset.sure = '1'; b.textContent = 'Zeker weten? Klik nog eens'; return; }
+  delete b.dataset.sure; b.textContent = 'Alle budgetten wissen'; state.settings.budgets = {}; saveSettings(); renderBudget();
+});
+// voor later: dezelfde functies als "tools" voor een assistent
+window.geldwijzer = { context: () => context(state.a), calculateBudgetForecast: () => calculateBudgetForecast(state.a, state.settings), calculateAvailableToSpend: () => calculateAvailableToSpend(state.a, state.settings, forecast().params.variabel), calculateEndOfMonthBalance: () => calculateEndOfMonthBalance(state.a, forecast().params.variabel), getUpcomingExpenses: (d = 7) => getUpcomingExpenses(state.a, d), comparePeriods: () => comparePeriods(state.a), generateAlerts: () => alertsNow() };

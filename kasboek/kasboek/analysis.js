@@ -94,6 +94,11 @@ function ruleCategory(t) {
 export function analyze(txIn, settings = {}, meta = {}) {
   const own = new Set([...(settings.ownIbans || []), ...(meta.accounts || [])].map((s) => s.replace(/\s/g, '').toUpperCase()).filter(Boolean));
   const holders = new Set((settings.holders || []).map(nameKey).filter(Boolean));
+  // naam van de rekeninghouder afleiden uit overboekingen naar eigen spaarpotten ("naar: Vrij Spaargeld")
+  for (const t of txIn) {
+    const sameBank = t.counterIban && t.account && t.counterIban.slice(4, 8) === t.account.slice(4, 8) && t.counterIban !== t.account;
+    if (sameBank && /(^|\s)(naar|van):\s*\S/i.test(t.desc || '') && t.name && t.kind !== 'pin' && t.kind !== 'incasso') holders.add(nameKey(t.name));
+  }
   const overrides = settings.overrides || {};
   const txOv = settings.txOverrides || {};
   const threshold = settings.eenmaligThreshold ?? 750;
@@ -102,7 +107,10 @@ export function analyze(txIn, settings = {}, meta = {}) {
     const key = nameKey(t.name) || nameKey((t.desc || '').slice(0, 30));
     let cat = overrides[key] || null, auto = !cat;
     if (!cat) {
-      const internal = (t.counterIban && own.has(t.counterIban) && t.counterIban !== t.account && t.kind !== 'kosten') || (holders.has(key) && t.kind !== 'pin' && t.kind !== 'incasso');
+      // Rabobank-spaarpotten: "Vakantie naar: Vrij Spaargeld" naar een rekening van dezelfde bank
+      const sameBank = t.counterIban && t.account && t.counterIban.slice(4, 8) === t.account.slice(4, 8) && t.counterIban !== t.account;
+      const potTransfer = sameBank && t.kind !== 'pin' && t.kind !== 'incasso' && /(^|\s)(naar|van):\s*\S/i.test(t.desc || '');
+      const internal = potTransfer || (t.counterIban && own.has(t.counterIban) && t.counterIban !== t.account && t.kind !== 'kosten') || (holders.has(key) && t.kind !== 'pin' && t.kind !== 'incasso');
       cat = internal ? 'intern' : ruleCategory(t);
       // grote losse ontvangst in een uitgavencategorie (bijv. verkoop auto) is eenmalig inkomen, geen negatieve uitgave
       if (t.amount >= threshold && !['inkomen', 'intern'].includes(CAT[cat].group)) cat = 'eenmalig_in';

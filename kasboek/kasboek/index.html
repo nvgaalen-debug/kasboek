@@ -86,6 +86,7 @@
     <nav class="tabs" role="tablist" aria-label="Onderdelen">
       <button role="tab" id="t-overzicht" aria-controls="p-overzicht" aria-selected="true" data-tab="overzicht">Overzicht</button>
       <button role="tab" id="t-vast" aria-controls="p-vast" aria-selected="false" data-tab="vast">Vaste lasten</button>
+      <button role="tab" id="t-budget" aria-controls="p-budget" aria-selected="false" data-tab="budget">Budgetten</button>
       <button role="tab" id="t-prognose" aria-controls="p-prognose" aria-selected="false" data-tab="prognose">Prognose</button>
       <button role="tab" id="t-sparen" aria-controls="p-sparen" aria-selected="false" data-tab="sparen">Sparen</button>
       <button role="tab" id="t-proj" aria-controls="p-proj" aria-selected="false" data-tab="proj">Projecten</button>
@@ -95,6 +96,7 @@
     </nav>
 
     <section class="panel" id="p-overzicht" role="tabpanel" aria-labelledby="t-overzicht">
+      <article class="card insights" id="insights" aria-live="polite"></article>
       <div class="tiles" id="tiles-overzicht"></div>
       <article class="card tile-detail" id="td-overzicht" aria-live="polite" hidden></article>
       <div class="grid">
@@ -133,6 +135,22 @@
       <article class="card">
         <header><h2>Vaste lasten per maand</h2><p>Wat er werkelijk aan vaste lasten is afgeschreven.</p></header>
         <div class="chart short" id="ch-vast"></div>
+      </article>
+    </section>
+
+    <section class="panel" id="p-budget" role="tabpanel" aria-labelledby="t-budget" hidden>
+      <article class="card">
+        <header><h2>Budgetten</h2><p id="bg-intro"></p></header>
+        <div class="bg-controls">
+          <label for="bg-buffer">Minimumbuffer op je betaalrekening</label>
+          <input id="bg-buffer" type="number" min="0" step="50" inputmode="decimal" placeholder="bijv. 500">
+          <p class="hint">Het bedrag dat je altijd wilt laten staan. Geldwijzer waarschuwt als je verwacht eronder te zakken, en rekent het niet mee als vrij te besteden.</p>
+        </div>
+        <div class="filters"><button class="btn primary" id="bg-suggest" type="button">Stel budgetten voor</button><button class="btn ghost" id="bg-clear" type="button">Alle budgetten wissen</button></div>
+        <p class="hint">Budgetten gelden voor je wisselende uitgaven, zoals boodschappen, uit eten en kleding. Vaste lasten en grote eenmalige uitgaven tellen niet mee. Een voorstel gebruikt wat je in een normale maand uitgeeft (de middelste van de laatste maanden), afgerond op € 10.</p>
+      </article>
+      <article class="card">
+        <div class="bg-table" id="bg-table"></div>
       </article>
     </section>
 
